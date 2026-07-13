@@ -41,6 +41,7 @@ const config = {
   
   OPENAI: {
     apiKey: process.env.OPENAI_API_KEY,
+    openRouterKey: process.env.OPENROUTER_API_KEY,
     model: process.env.OPENAI_MODEL || 'gpt-3.5-turbo'
   },
   

@@ -2,7 +2,16 @@ import { Configuration, OpenAIApi } from 'openai';
 import config from '../config/index.js';
 import logger from '../config/logger.js';
 
-const openai = new OpenAIApi(new Configuration({ apiKey: config.OPENAI_API_KEY }));
+const openai = new OpenAIApi(new Configuration({ 
+  apiKey: config.OPENAI.openRouterKey || config.OPENAI.apiKey,
+  basePath: 'https://openrouter.ai/api/v1',
+  baseOptions: {
+    headers: {
+      'HTTP-Referer': config.SERVER_URL,
+      'X-Title': 'Melodia',
+    },
+  },
+}));
 
 export const generateSmartPlaylistName = async (criteria) => {
   try {
