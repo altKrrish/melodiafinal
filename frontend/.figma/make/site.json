@@ -1,0 +1,10 @@
+{
+  "description": "A premium, AI-powered music streaming platform offering immersive discovery, social sharing, and advanced playlist curation for serious listeners.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

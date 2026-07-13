@@ -1,0 +1,9 @@
+{
+  "fonts": [
+    { "family": "Inter Tight", "style": "Bold" },
+    { "family": "Inter", "style": "Regular" },
+    { "family": "Inter", "style": "Medium" },
+    { "family": "Inter", "style": "SemiBold" },
+    { "family": "JetBrains Mono", "style": "Regular" }
+  ]
+}
