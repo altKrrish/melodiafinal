@@ -133,18 +133,18 @@ export const generateAiPlaylist = async (userPrompt) => {
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'google/gemini-2.5-flash:free',
+        model: 'tencent/hy3:free',
         messages: [
           {
             role: 'system',
-            content: 'You are a music recommendation AI. Return ONLY a valid JSON object containing a creative "name" (string), a short "description" (string), and an array of exactly 30 "songs" matching the user\'s prompt. Each song object must have "title" (string) and "artist" (string) keys. DO NOT wrap the response in markdown code blocks or backticks. ONLY RETURN RAW JSON.'
+            content: 'You are a master music curator AI. Your task is to generate a highly creative, custom playlist based on the user\'s prompt. You MUST return ONLY a valid JSON object with EXACTLY three keys: "name" (a catchy, creative title for the playlist, max 6 words), "description" (a highly engaging description of the vibe, max 2 sentences), and "songs" (an array of exactly 30 unique song objects). Each song object must have "title" (string) and "artist" (string). CRITICAL RULES: 1. No duplicate songs or artists. 2. Output RAW JSON ONLY. No markdown, no backticks, no conversational text.'
           },
           {
             role: 'user',
-            content: userPrompt
+            content: `Create a custom playlist based on this exact prompt: "${userPrompt}". Make sure the "name" and "description" fields perfectly capture the essence of this prompt. Include deep cuts and hidden gems, not just obvious hits. Random seed: ${Date.now()}`
           }
         ],
-        temperature: 0.7,
+        temperature: 1.0,
       },
       {
         headers: {
@@ -230,7 +230,7 @@ export const generateSmartPlaylistFromLikes = async (likedSongs) => {
     .map((song) => `"${song.title}" by ${song.artist}`)
     .join(', ');
 
-  const prompt = `You are a music recommendation engine. Based on the user's favorite tracks: [${trackListString}], recommend exactly 10 similar songs. You MUST respond with ONLY a raw JSON array of exactly 10 objects, where each object has a "title" and an "artist" key. Do not exceed 10. Do not include markdown formatting, backticks, or any conversational text.`;
+  const prompt = `You are a music recommendation engine. Based on the user's favorite tracks: [${trackListString}], recommend exactly 10 NEW and UNIQUE songs they haven't heard before. Avoid recommending songs already in their favorites. You MUST respond with ONLY a raw JSON array of exactly 10 objects, where each object has a "title" and an "artist" key. Every song must be different - no duplicates. Include lesser-known tracks and hidden gems, not just popular hits. Current timestamp for randomness: ${Date.now()}. Do not exceed 10. DO NOT include markdown formatting, backticks, or any conversational text. OUTPUT RAW JSON ONLY.`;
 
   try {
     logger.info(`Requesting OpenRouter for smart playlist. Favorites count: ${likedSongs.length}`);

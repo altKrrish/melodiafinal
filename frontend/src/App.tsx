@@ -111,6 +111,38 @@ const AVATARS = [
   'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&q=80'  // Grid Explorer
 ];
 
+// Reusable Playlist Cover Component
+const PlaylistCover = ({ playlist, className = "" }: { playlist: Playlist | any, className?: string }) => {
+  if (playlist.coverImage) {
+    return <img src={playlist.coverImage} alt={playlist.name} loading="lazy" className={`object-cover ${className}`} />;
+  }
+  
+  if (playlist.songs && playlist.songs.length >= 4) {
+    const covers = playlist.songs.slice(0, 4).map((s: any) => s.coverImage || s.thumbnail || '');
+    // Ensure all 4 actually have covers
+    if (covers.every((c: string) => c)) {
+      return (
+        <div className={`grid grid-cols-2 grid-rows-2 ${className}`}>
+          {covers.map((url: string, i: number) => (
+            <img key={i} src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
+          ))}
+        </div>
+      );
+    }
+  }
+
+  const singleCover = playlist.songs && playlist.songs.length > 0 ? (playlist.songs[0].coverImage || playlist.songs[0].thumbnail) : null;
+  if (singleCover) {
+    return <img src={singleCover} alt={playlist.name} loading="lazy" className={`object-cover ${className}`} />;
+  }
+
+  return (
+    <div className={`flex items-center justify-center bg-indigo-900/40 text-indigo-400 ${className}`}>
+      <Music size={24} />
+    </div>
+  );
+};
+
 // I. COMMUNITY VIEW
 const CommunityView = ({ onViewProfile, onSelectPlaylist }: any) => {
   const [users, setUsers] = useState<any[]>([]);
@@ -183,7 +215,7 @@ const CommunityView = ({ onViewProfile, onSelectPlaylist }: any) => {
                 className="glass-panel p-4 rounded-3xl border border-indigo-500/10 bg-[#0C1030]/80 hover:bg-[#13173A] transition-colors cursor-pointer group flex flex-col"
               >
                 <div className="aspect-square bg-gradient-to-br from-[#1E2555] to-[#0A0D28] rounded-2xl mb-3 flex items-center justify-center border border-indigo-500/5 group-hover:border-indigo-500/20 relative overflow-hidden">
-                  <Music size={24} className="text-indigo-400/50" />
+                  <PlaylistCover playlist={p} className="w-full h-full" />
                 </div>
                 <h4 className="text-sm font-bold text-white truncate">{p.name}</h4>
                 <p className="text-[10px] text-[#64748B] mt-1">{p.songs?.length || 0} Tracks • {p.owner?.username || 'Unknown'}</p>
@@ -321,134 +353,6 @@ const UserProfileView = ({ userId, playSong, onBack, onSelectPlaylist }: any) =>
         )}
       </div>
       
-      {/* Create Playlist Modal */}
-      {showCreatePlaylistModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm glass-panel p-6 rounded-3xl border border-indigo-500/20 bg-[#0C1030] shadow-[0_0_40px_rgba(99,102,241,0.2)]">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-display font-bold text-lg text-white flex items-center gap-2">
-                <Music size={18} className="text-indigo-400" /> New Playlist
-              </h3>
-              <button 
-                onClick={() => setShowCreatePlaylistModal(false)}
-                className="p-1 rounded-full hover:bg-[#1E2555] text-[#94A3B8] hover:text-white transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="mb-6">
-              <label className="block text-xs font-bold text-[#94A3B8] mb-2 ml-1">Playlist Name</label>
-              <input
-                type="text"
-                autoFocus
-                placeholder="Enter a retro name..."
-                value={newPlaylistName}
-                onChange={(e) => setNewPlaylistName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreatePlaylist()}
-                className="w-full bg-[#13173A] border border-indigo-500/20 rounded-full px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D946EF]/50 focus:ring-1 focus:ring-[#D946EF]/50 transition-all placeholder:text-slate-600"
-              />
-            </div>
-            <div className="mb-6 flex items-center gap-3 ml-1">
-              <input
-                type="checkbox"
-                id="playlistPublic"
-                checked={newPlaylistPublic}
-                onChange={(e) => setNewPlaylistPublic(e.target.checked)}
-                className="w-4 h-4 rounded border-indigo-500/30 bg-[#13173A] text-[#D946EF] focus:ring-[#D946EF]/50 cursor-pointer"
-              />
-              <label htmlFor="playlistPublic" className="text-xs font-bold text-[#94A3B8] cursor-pointer select-none">
-                Make public (visible in Community)
-              </label>
-            </div>
-            <div className="flex justify-end gap-3">
-              <button 
-                onClick={() => setShowCreatePlaylistModal(false)}
-                className="px-4 py-2 rounded-full text-xs font-bold text-[#94A3B8] hover:text-white hover:bg-[#1E2555] transition-all"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleCreatePlaylist}
-                disabled={!newPlaylistName.trim()}
-                className="btn-primary px-5 py-2 rounded-full font-bold text-xs bg-gradient-to-r from-[#6366F1] to-[#D946EF] text-white disabled:opacity-50 hover:scale-105 transition-all"
-              >
-                Create
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* AI Composer Modal */}
-      {showAiPromptModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg glass-panel p-6 rounded-3xl border border-indigo-500/20 bg-[#0C1030] shadow-[0_0_40px_rgba(99,102,241,0.2)]">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-display font-bold text-lg text-white flex items-center gap-2">
-                <Activity size={18} className="text-[#D946EF]" /> Generate Custom AI Soundtrack
-              </h3>
-              {!isAiProcessing && (
-                <button 
-                  onClick={() => setShowAiPromptModal(false)}
-                  className="p-1 rounded-full hover:bg-[#1E2555] text-[#94A3B8] hover:text-white transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              )}
-            </div>
-            
-            <div className="mb-6 relative">
-              <label className="block text-xs font-bold text-[#94A3B8] mb-2 ml-1">Describe Your Vibe</label>
-              <textarea
-                autoFocus
-                placeholder='e.g., "retro night drive with heavy synthwave beats" or "relaxing study session"'
-                value={aiPromptInput}
-                onChange={(e) => setAiPromptInput(e.target.value)}
-                disabled={isAiProcessing}
-                rows={3}
-                className="w-full bg-[#13173A] border border-indigo-500/20 rounded-2xl p-4 text-sm text-white focus:outline-none focus:border-[#D946EF]/50 focus:ring-1 focus:ring-[#D946EF]/50 transition-all placeholder:text-slate-600 resize-none disabled:opacity-50"
-              />
-              {isAiProcessing && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0C1030]/80 backdrop-blur-sm rounded-2xl z-10">
-                  <div className="w-8 h-8 border-2 border-[#D946EF] border-t-transparent rounded-full animate-spin mb-3"></div>
-                  <p className="text-xs font-bold text-indigo-200 animate-pulse">AI is compiling tracks...</p>
-                </div>
-              )}
-            </div>
-            
-            <div className="flex flex-wrap gap-2 mb-6">
-              <span className="text-3xs text-[#94A3B8] font-bold w-full ml-1">Quick Prompts:</span>
-              {['Cyberpunk Neon City', '80s Workout Montage', 'Chill Lofi Beats', 'Boss Battle Epic'].map((t, idx) => (
-                <button
-                  key={idx}
-                  disabled={isAiProcessing}
-                  onClick={() => setAiPromptInput(t)}
-                  className="px-3 py-1 rounded-full bg-[#161B46] border border-indigo-500/20 hover:border-[#D946EF]/50 hover:bg-[#1E245D] text-3xs font-bold text-indigo-200 transition-all disabled:opacity-50"
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-            
-            <div className="flex justify-end gap-3">
-              <button 
-                onClick={() => setShowAiPromptModal(false)}
-                disabled={isAiProcessing}
-                className="px-4 py-2 rounded-full text-xs font-bold text-[#94A3B8] hover:text-white hover:bg-[#1E2555] transition-all disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => handleAiSmartPlaylist()}
-                disabled={!aiPromptInput.trim() || isAiProcessing}
-                className="btn-primary px-5 py-2 rounded-full font-bold text-xs bg-gradient-to-r from-[#6366F1] to-[#D946EF] text-white disabled:opacity-50 hover:scale-105 transition-all flex items-center gap-2"
-              >
-                {isAiProcessing ? 'Generating...' : 'Generate Soundtrack'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -480,10 +384,9 @@ export default function App() {
   const [newPlaylistPublic, setNewPlaylistPublic] = useState(false);
   const [aiPromptInput, setAiPromptInput] = useState('');
   const [isAiProcessing, setIsAiProcessing] = useState(false);
+  const [aiProgress, setAiProgress] = useState(0);
   const [toastMessage, setToastMessage] = useState('');
   const [showQueueDrawer, setShowQueueDrawer] = useState(false);
-  const [vibeMixes, setVibeMixes] = useState<any[]>([]);
-  const [loadingVibeMixes, setLoadingVibeMixes] = useState(false);
   const [isGeneratingSmart, setIsGeneratingSmart] = useState(false);
 
   // Share Modal State
@@ -587,30 +490,29 @@ export default function App() {
     }
   }, [likedSongs.length, playlists.length]);
 
-  // Fetch vibe mixes (K-Means acoustic clustering)
-  const fetchVibeMixes = async () => {
-    if (likedSongs.length === 0) {
-      setVibeMixes([]);
-      return;
-    }
-    setLoadingVibeMixes(true);
-    try {
-      const res = await axios.get(`${API_URL}/songs/vibe-mixes`);
-      setVibeMixes(res.data);
-    } catch (err) {
-      console.error('Failed to fetch vibe mixes:', err);
-    } finally {
-      setLoadingVibeMixes(false);
-    }
-  };
-
+  // Scroll to top on view change
   useEffect(() => {
-    if (token && likedSongs.length > 0) {
-      fetchVibeMixes();
-    } else {
-      setVibeMixes([]);
+    const mainContainer = document.getElementById('main-scroll-container');
+    if (mainContainer) {
+      mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [token, likedSongs.length]);
+  }, [currentView]);
+
+  // AI progress simulation helper
+  const simulateAiProgress = () => {
+    setAiProgress(0);
+    const steps = [5, 12, 20, 30, 42, 55, 65, 72, 80, 88, 92];
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < steps.length) {
+        setAiProgress(steps[i]);
+        i++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 1200);
+    return interval;
+  };
 
   // Synchronize playback events
   useEffect(() => {
@@ -639,7 +541,7 @@ export default function App() {
         setDuration(dur);
         setProgress((curr / dur) * 100);
       }
-    }, 500);
+    }, 1000);
   };
 
   const stopProgressPolling = () => {
@@ -863,60 +765,64 @@ export default function App() {
     if (!promptText.trim()) return;
 
     setIsAiProcessing(true);
-    showToast('AI is compiling your vibe...');
+    setAiProgress(0);
+    const progressInterval = simulateAiProgress();
+    showToast('AI is generating your playlist...');
     try {
       const res = await axios.post(`${API_URL}/playlists/ai-generate`, { prompt: promptText });
       const aiPlaylist = res.data;
+      setAiProgress(95);
 
       if (aiPlaylist.songs && aiPlaylist.songs.length > 0) {
-        // Save this playlist under user's catalog with all songs attached
         const saveRes = await axios.post(`${API_URL}/playlists`, {
-          name: aiPlaylist.name || 'AI Mood Vibe',
-          description: aiPlaylist.description || `AI composed mix for: "${promptText}"`,
+          name: aiPlaylist.name || 'AI Playlist',
+          description: aiPlaylist.description || `AI playlist for: "${promptText}"`,
           songs: aiPlaylist.songs
         });
 
         const newPlaylist = saveRes.data.data;
-
-        // Reload lists, select and play it
         await fetchUserPlaylists();
         const finalPlaylistRes = await axios.get(`${API_URL}/playlists/${newPlaylist._id}`);
         const playlistData = finalPlaylistRes.data.data;
         
+        setAiProgress(100);
         setSelectedPlaylist(playlistData);
         setCurrentView('playlist');
         
         if (playlistData.songs && playlistData.songs.length > 0) {
           playSong(playlistData.songs[0], playlistData.songs);
         }
-        showToast('AI Playlist compiled and playing!');
+        showToast('AI Playlist created and playing!');
         setShowAiPromptModal(false);
+        setShowCreatePlaylistModal(false);
         setAiPromptInput('');
       } else {
         showToast('AI failed to find songs. Try a different prompt.');
       }
     } catch (err) {
       console.error('AI generation failed:', err);
-      showToast('AI composer error.');
+      showToast('AI generation failed. Please try again.');
     } finally {
+      clearInterval(progressInterval);
       setIsAiProcessing(false);
+      setAiProgress(0);
     }
   };
 
   // AI Generated Smart Playlist from Liked Songs
   const handleGenerateSmartPlaylist = async () => {
     if (likedSongs.length === 0) {
-      showToast('Please like some songs on Explore first before generating an AI Smart Playlist!');
+      showToast('Please like some songs first before generating a smart playlist!');
       return;
     }
 
     setIsGeneratingSmart(true);
-    showToast('AI is analyzing your Liked Songs taste...');
-    console.log('[DIAGNOSTIC] Triggered handleGenerateSmartPlaylist on client. Liked songs count:', likedSongs.length);
+    setAiProgress(0);
+    const progressInterval = simulateAiProgress();
+    showToast('AI is analyzing your liked songs...');
     try {
-      console.log(`[DIAGNOSTIC] Dispatching POST request to ${API_URL}/playlists/smart`);
       const res = await axios.post(`${API_URL}/playlists/smart`);
-      console.log('[DIAGNOSTIC] Received smart playlist API response data:', res.data);
+      setAiProgress(95);
       if (res.data.success) {
         const rawPlaylist = res.data.playlist || res.data.data;
         const playlistData = rawPlaylist ? {
@@ -926,31 +832,30 @@ export default function App() {
         } : null;
 
         if (playlistData) {
-          console.log('[DIAGNOSTIC] UI injecting new smart playlist object:', playlistData._id);
-          // Instantly inject new playlist into state to update UI immediately
-          setPlaylists(prev => [playlistData, ...prev]);
+          await fetchUserPlaylists();
+          setAiProgress(100);
           setSelectedPlaylist(playlistData);
           setCurrentView('playlist');
           
           if (playlistData.songs && playlistData.songs.length > 0) {
             playSong(playlistData.songs[0], playlistData.songs);
           }
-          showToast('AI Smart Playlist generated and playing!');
+          showToast('Smart Playlist created and playing!');
+          setShowAiPromptModal(false);
+          setShowCreatePlaylistModal(false);
         } else {
-          console.error('[DIAGNOSTIC ERROR] No playlist payload in response');
           showToast('Failed to compile smart playlist.');
         }
       } else {
-        console.error('[DIAGNOSTIC ERROR] Server responded with success=false');
         showToast('Failed to compile smart playlist.');
       }
     } catch (err: any) {
-      console.error('[DIAGNOSTIC ERROR] Smart playlist generation failed on client:', err);
       const errorMsg = err.response?.data?.message || 'AI smart playlist generation failed.';
       showToast(errorMsg);
     } finally {
+      clearInterval(progressInterval);
       setIsGeneratingSmart(false);
-      console.log('[DIAGNOSTIC] Finished handleGenerateSmartPlaylist execution.');
+      setAiProgress(0);
     }
   };
 
@@ -1020,6 +925,26 @@ export default function App() {
       setIsPlaying(true);
     }
   };
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input or textarea
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setIsPlaying(prev => !prev);
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        handleNext();
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        handlePrev();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleNext, handlePrev]);
 
   // Seekbar scrubbing
   const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1350,19 +1275,20 @@ export default function App() {
                     <Users size={18} className={currentView === 'community' ? 'text-[#D946EF]' : ''} />
                     <span className="text-sm font-semibold">Community</span>
                   </button>
+
+                  <button 
+                    onClick={() => setShowCreatePlaylistModal(true)} 
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-full transition-all border text-[#94A3B8] border-transparent hover:text-white hover:bg-[#13173A]`}
+                  >
+                    <PlusSquare size={18} className="text-[#D946EF]" />
+                    <span className="text-sm font-semibold">Create Playlist</span>
+                  </button>
                 </div>
 
                 {/* Playlist Manager */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between px-3 mb-2">
                     <p className="text-2xs font-extrabold text-[#64748B] uppercase tracking-widest">Library</p>
-                    <button 
-                      onClick={() => setShowCreatePlaylistModal(true)} 
-                      className="p-1 rounded-full text-[#94A3B8] hover:text-white hover:bg-[#1E2555] transition-all"
-                      title="Create Custom Playlist"
-                    >
-                      <PlusSquare size={16} />
-                    </button>
                   </div>
 
                   <div className="space-y-1 overflow-y-auto max-h-[220px] pr-1">
@@ -1373,9 +1299,7 @@ export default function App() {
                         className={`w-full group flex items-center justify-between px-3 py-2 rounded-full cursor-pointer transition-all border ${selectedPlaylist?._id === playlist._id && currentView === 'playlist' ? 'bg-[#1A1F4C]/80 border-indigo-500/20 text-white font-medium' : 'text-[#94A3B8] border-transparent hover:bg-[#13173A] hover:text-white'}`}
                       >
                         <div className="flex items-center gap-2.5 truncate">
-                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#6366F1] to-[#D946EF] flex items-center justify-center shrink-0 shadow-sm text-2xs text-white font-bold">
-                            P
-                          </div>
+                          <PlaylistCover playlist={playlist} className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 shadow-sm text-2xs text-white font-bold" />
                           <span className="text-xs truncate">{playlist.name}</span>
                         </div>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -1441,15 +1365,6 @@ export default function App() {
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  {/* AI Quick Prompt Button */}
-                  <button 
-                    onClick={() => setShowAiPromptModal(true)}
-                    className="btn-primary px-4 py-1.5 rounded-full font-bold text-xs bg-gradient-to-r from-[#6366F1] to-[#D946EF] text-white shadow-[0_0_10px_rgba(99,102,241,0.3)] hover:scale-102 transition-all flex items-center gap-1.5"
-                  >
-                    <Activity size={14} className="animate-pulse" />
-                    AI Composer
-                  </button>
-
                   <button 
                     onClick={() => setCurrentView('profile')}
                     className="w-8 h-8 rounded-full border border-indigo-500/30 overflow-hidden"
@@ -1464,97 +1379,91 @@ export default function App() {
               </header>
 
               {/* Dynamic View Panel Renderer */}
-              <div className="flex-1">
-                
-                {/* 1. HOME VIEW */}
-                {currentView === 'home' && (
-                  <HomeView 
-                    playSong={playSong} 
-                    likedSongs={likedSongs} 
-                    onToggleLike={handleToggleLike} 
-                    onAiPrompt={handleAiSmartPlaylist}
-                    vibeMixes={vibeMixes}
-                    loadingVibeMixes={loadingVibeMixes}
-                    onSelectPlaylist={(p: Playlist) => {
-                      setSelectedPlaylist(p);
-                      setCurrentView('playlist');
-                    }}
-                    username={currentUser?.username}
-                  />
-                )}
+              <div className="flex-1 overflow-y-auto custom-scrollbar" id="main-scroll-container">
+                <div key={currentView} className="animate-in fade-in slide-in-from-bottom-4 duration-500 h-full">
+                  {/* 1. HOME VIEW */}
+                  {currentView === 'home' && (
+                    <HomeView 
+                      playSong={playSong} 
+                      likedSongs={likedSongs} 
+                      playlistsCount={playlists.length}
+                      onToggleLike={handleToggleLike} 
+                      username={currentUser?.username}
+                    />
+                  )}
 
-                {/* 2. EXPLORE/SEARCH VIEW */}
-                {currentView === 'search' && <SearchView playSong={playSong} likedSongs={likedSongs} onToggleLike={handleToggleLike} onAddPlaylist={(song) => { setSongToAddToPlaylist(song); setShowAddToPlaylistModal(true); }} />}
+                  {/* 2. EXPLORE/SEARCH VIEW */}
+                  {currentView === 'search' && <SearchView playSong={playSong} likedSongs={likedSongs} onToggleLike={handleToggleLike} onAddPlaylist={(song: any) => { setSongToAddToPlaylist(song); setShowAddToPlaylistModal(true); }} />}
 
-                {/* 3. PLAYLIST DETAILS VIEW */}
-                {currentView === 'playlist' && selectedPlaylist && (
-                  <PlaylistErrorBoundary>
-                    <PlaylistView 
-                      playlist={selectedPlaylist} 
+                  {/* 3. PLAYLIST DETAILS VIEW */}
+                  {currentView === 'playlist' && selectedPlaylist && (
+                    <PlaylistErrorBoundary>
+                      <PlaylistView 
+                        playlist={selectedPlaylist} 
+                        playSong={playSong} 
+                        currentSong={currentSong} 
+                        isPlaying={isPlaying} 
+                        likedSongs={likedSongs} 
+                        onToggleLike={handleToggleLike} 
+                        onRemoveSong={handleRemoveSongFromPlaylist} 
+                        onShare={(e: any) => handleSharePlaylist(selectedPlaylist, e)}
+                        onTogglePublic={handleTogglePublic}
+                      />
+                    </PlaylistErrorBoundary>
+                  )}
+
+                  {/* 4. LIKED SONGS VIEW */}
+                  {currentView === 'liked' && (
+                    <LikedSongsView 
+                      songs={likedSongs} 
                       playSong={playSong} 
                       currentSong={currentSong} 
                       isPlaying={isPlaying} 
-                      likedSongs={likedSongs} 
                       onToggleLike={handleToggleLike} 
-                      onRemoveSong={handleRemoveSongFromPlaylist} 
-                      onShare={(e) => handleSharePlaylist(selectedPlaylist, e)}
-                      onTogglePublic={handleTogglePublic}
+                      onGenerateSmartPlaylist={handleGenerateSmartPlaylist}
+                      isGeneratingSmart={isGeneratingSmart}
                     />
-                  </PlaylistErrorBoundary>
-                )}
+                  )}
 
-                {/* 4. LIKED SONGS VIEW */}
-                {currentView === 'liked' && (
-                  <LikedSongsView 
-                    songs={likedSongs} 
-                    playSong={playSong} 
-                    currentSong={currentSong} 
-                    isPlaying={isPlaying} 
-                    onToggleLike={handleToggleLike} 
-                    onGenerateSmartPlaylist={handleGenerateSmartPlaylist}
-                    isGeneratingSmart={isGeneratingSmart}
-                  />
-                )}
+                  {/* 5. PROFILE / STATS VIEW */}
+                  {currentView === 'profile' && (
+                    <ProfileView 
+                      user={currentUser} 
+                      logout={() => updateAuthToken(null)} 
+                      playlistsCount={playlists.length} 
+                      likedCount={likedSongs.length} 
+                      onUpdateProfilePicture={handleUpdateProfilePicture}
+                      userStats={userStats}
+                    />
+                  )}
 
-                {/* 5. PROFILE / STATS VIEW */}
-                {currentView === 'profile' && (
-                  <ProfileView 
-                    user={currentUser} 
-                    logout={() => updateAuthToken(null)} 
-                    playlistsCount={playlists.length} 
-                    likedCount={likedSongs.length} 
-                    onUpdateProfilePicture={handleUpdateProfilePicture}
-                    userStats={userStats}
-                  />
-                )}
+                  {/* 6. COMMUNITY VIEW */}
+                  {currentView === 'community' && (
+                    <CommunityView 
+                      onViewProfile={(userId: string) => {
+                        setSelectedUserId(userId);
+                        setCurrentView('user-profile');
+                      }}
+                      onSelectPlaylist={(p: Playlist) => {
+                        setSelectedPlaylist(p);
+                        setCurrentView('playlist');
+                      }}
+                    />
+                  )}
 
-                {/* 6. COMMUNITY VIEW */}
-                {currentView === 'community' && (
-                  <CommunityView 
-                    onViewProfile={(userId: string) => {
-                      setSelectedUserId(userId);
-                      setCurrentView('user-profile');
-                    }}
-                    onSelectPlaylist={(p: Playlist) => {
-                      setSelectedPlaylist(p);
-                      setCurrentView('playlist');
-                    }}
-                  />
-                )}
-
-                {/* 7. USER PROFILE VIEW */}
-                {currentView === 'user-profile' && selectedUserId && (
-                  <UserProfileView 
-                    userId={selectedUserId}
-                    playSong={playSong}
-                    onBack={() => setCurrentView('community')}
-                    onSelectPlaylist={(p: Playlist) => {
-                      setSelectedPlaylist(p);
-                      setCurrentView('playlist');
-                    }}
-                  />
-                )}
-
+                  {/* 7. USER PROFILE VIEW */}
+                  {currentView === 'user-profile' && selectedUserId && (
+                    <UserProfileView 
+                      userId={selectedUserId}
+                      playSong={playSong}
+                      onBack={() => setCurrentView('community')}
+                      onSelectPlaylist={(p: Playlist) => {
+                        setSelectedPlaylist(p);
+                        setCurrentView('playlist');
+                      }}
+                    />
+                  )}
+                </div>
               </div>
 
             </main>
@@ -1640,6 +1549,166 @@ export default function App() {
         </div>
       )}
 
+        {/* Unified Playlist Creation Modal */}
+        {(showCreatePlaylistModal || showAiPromptModal) && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
+            <div className="w-full max-w-lg glass-panel p-6 rounded-3xl border border-indigo-500/30 bg-[#0C1030]/90 shadow-[0_0_50px_rgba(99,102,241,0.25)] relative overflow-hidden">
+              <div className="absolute -inset-0.5 bg-gradient-to-br from-[#6366F1]/10 to-[#D946EF]/10 pointer-events-none rounded-3xl"></div>
+              
+              <div className="flex justify-between items-center mb-6 relative z-10">
+                <h3 className="font-display font-black text-2xl text-white flex items-center gap-2">
+                  <Music size={24} className="text-[#D946EF]" /> Create Playlist
+                </h3>
+                <button 
+                  onClick={() => {
+                    setShowCreatePlaylistModal(false);
+                    setShowAiPromptModal(false);
+                  }}
+                  className="p-1.5 rounded-full hover:bg-[#1E2555] text-[#94A3B8] hover:text-white transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex gap-2 mb-6 relative z-10 p-1 bg-[#0A0D28] rounded-xl border border-indigo-500/20">
+                <button
+                  onClick={() => { setShowCreatePlaylistModal(true); setShowAiPromptModal(false); }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${showCreatePlaylistModal && !showAiPromptModal ? 'bg-[#1E2555] text-white shadow-md' : 'text-[#64748B] hover:text-white'}`}
+                >
+                  Manual
+                </button>
+                <button
+                  onClick={() => { setShowAiPromptModal(true); setShowCreatePlaylistModal(false); }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${showAiPromptModal ? 'bg-[#1E2555] text-white shadow-md' : 'text-[#64748B] hover:text-white'}`}
+                >
+                  AI Prompt
+                </button>
+              </div>
+              
+              <div className="relative z-10 min-h-[220px]">
+                {showCreatePlaylistModal && !showAiPromptModal ? (
+                  <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+                    <div>
+                      <label className="block text-xs font-bold text-[#94A3B8] mb-1.5 ml-1">Playlist Name</label>
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="Enter a playlist name..."
+                        value={newPlaylistName}
+                        onChange={(e) => setNewPlaylistName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleCreatePlaylist()}
+                        className="w-full bg-[#13173A] border border-indigo-500/20 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#D946EF]/50 focus:ring-1 focus:ring-[#D946EF]/50 transition-all placeholder:text-slate-600"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3 ml-1 py-2">
+                      <input
+                        type="checkbox"
+                        id="playlistPublicModal"
+                        checked={newPlaylistPublic}
+                        onChange={(e) => setNewPlaylistPublic(e.target.checked)}
+                        className="w-4 h-4 rounded border-indigo-500/30 bg-[#13173A] text-[#D946EF] focus:ring-[#D946EF]/50 cursor-pointer"
+                      />
+                      <label htmlFor="playlistPublicModal" className="text-xs font-bold text-[#94A3B8] cursor-pointer select-none">
+                        Make public (visible in Community)
+                      </label>
+                    </div>
+                    <div className="pt-2">
+                      <button 
+                        onClick={handleCreatePlaylist}
+                        disabled={!newPlaylistName.trim()}
+                        className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-[#6366F1] to-[#D946EF] text-white disabled:opacity-50 hover:opacity-90 transition-all shadow-lg"
+                      >
+                        Create Playlist
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4 animate-in slide-in-from-left-4 duration-300">
+                    
+                    {/* Progress Bar - shown during AI processing */}
+                    {(isAiProcessing || isGeneratingSmart) ? (
+                      <div className="space-y-4 py-4">
+                        <div className="text-center">
+                          <p className="text-sm font-bold text-white mb-1">
+                            {aiProgress < 30 ? 'Analyzing your request...' : aiProgress < 60 ? 'Discovering tracks...' : aiProgress < 90 ? 'Compiling playlist...' : 'Almost done!'}
+                          </p>
+                          <p className="text-xs text-[#94A3B8]">
+                            {aiProgress < 95 ? `~${Math.max(1, Math.round((100 - aiProgress) / 8))}s remaining` : 'Finishing up...'}
+                          </p>
+                        </div>
+                        <div className="w-full bg-[#13173A] rounded-full h-3 border border-indigo-500/20 overflow-hidden">
+                          <div 
+                            className="h-full rounded-full bg-gradient-to-r from-[#6366F1] to-[#D946EF] transition-all duration-700 ease-out relative"
+                            style={{ width: `${aiProgress}%` }}
+                          >
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                          </div>
+                        </div>
+                        <p className="text-center text-lg font-black text-white tabular-nums">{aiProgress}%</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative group">
+                          <div className="absolute -inset-1 bg-gradient-to-r from-[#D946EF]/20 to-[#0EA5E9]/20 rounded-2xl blur-md opacity-50 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+                          <div className="relative bg-[#13173A] border border-[#D946EF]/20 rounded-2xl overflow-hidden shadow-2xl flex flex-col focus-within:border-[#D946EF]/60 focus-within:ring-1 focus-within:ring-[#D946EF]/60 transition-all">
+                            <textarea
+                              autoFocus
+                              placeholder='e.g., "retro night drive with heavy synthwave beats"'
+                              value={aiPromptInput}
+                              onChange={(e) => setAiPromptInput(e.target.value)}
+                              rows={3}
+                              className="w-full bg-transparent p-5 text-sm font-medium text-white focus:outline-none placeholder:text-[#64748B] resize-none"
+                            />
+                            <div className="bg-[#101431] p-3 flex items-center justify-between border-t border-[#D946EF]/10">
+                              <span className="text-2xs text-[#D946EF]/70 font-semibold uppercase tracking-widest px-2 flex items-center gap-1.5"><Activity size={10} /> AI Curator</span>
+                              <button 
+                                onClick={() => handleAiSmartPlaylist()}
+                                disabled={!aiPromptInput.trim()}
+                                className="px-5 py-2 rounded-xl font-black text-xs bg-gradient-to-r from-[#6366F1] to-[#D946EF] text-white disabled:opacity-40 hover:opacity-100 transition-all shadow-[0_0_15px_rgba(217,70,239,0.4)] disabled:shadow-none flex items-center gap-2 hover:scale-105 active:scale-95"
+                              >
+                                <Music size={14} /> Generate
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-5">
+                          <p className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2.5 px-1">Try these vibes</p>
+                          <div className="flex flex-wrap gap-2">
+                            {['Late night cyberpunk drive 🌃', 'High energy lifting anthems 🏋️', 'Chill lo-fi study session ☕', '80s Disco Fever 🪩'].map((t, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => setAiPromptInput(t)}
+                                className="px-3.5 py-2 rounded-xl bg-[#161B46] border border-indigo-500/30 hover:border-[#D946EF] hover:bg-[#1C2152] hover:shadow-[0_0_10px_rgba(217,70,239,0.3)] text-xs font-semibold text-indigo-100 transition-all active:scale-95 text-left"
+                              >
+                                {t}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="relative flex items-center py-5 mt-2">
+                          <div className="flex-grow border-t border-[#4A5075]/30"></div>
+                          <span className="flex-shrink-0 mx-4 text-[#4A5075] text-3xs font-extrabold uppercase tracking-widest">Or Auto-Mix</span>
+                          <div className="flex-grow border-t border-[#4A5075]/30"></div>
+                        </div>
+
+                        <button 
+                          onClick={() => handleGenerateSmartPlaylist()}
+                          className="w-full py-3.5 rounded-2xl font-bold text-sm bg-gradient-to-r from-[#171C4B] to-[#1C1645] border border-rose-500/20 text-white hover:border-rose-500/60 hover:shadow-[0_0_20px_rgba(244,63,94,0.3)] transition-all flex items-center justify-center gap-2 hover:scale-[1.02]"
+                        >
+                          <Heart size={16} fill="currentColor" className="text-rose-500" /> Create from Liked Songs
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
       {/* Share Playlist Modal */}
       {shareModalPlaylist && (
         <ShareModal
@@ -1658,7 +1727,7 @@ export default function App() {
 // ----------------------------------------------------------------------------
 
 // A. HOME VIEW PANEL
-const HomeView = ({ playSong, likedSongs, onToggleLike, onAiPrompt, vibeMixes = [], loadingVibeMixes = false, onSelectPlaylist, username }: any) => {
+const HomeView = ({ playSong, likedSongs, playlistsCount, onToggleLike, username }: any) => {
   const [trending, setTrending] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -1690,92 +1759,34 @@ const HomeView = ({ playSong, likedSongs, onToggleLike, onAiPrompt, vibeMixes = 
       {/* Decorative gradient overlay */}
       <div className="absolute top-0 left-0 right-0 h-[250px] bg-gradient-to-b from-[#6366F1]/10 via-[#070A1E]/40 to-transparent pointer-events-none z-0"></div>
 
-      {/* Greeting */}
-      <div className="relative z-10 flex justify-between items-end">
+      {/* Greeting and Quick Stats */}
+      <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
           <h1 className="font-display font-black text-3xl md:text-4xl text-white tracking-tight">{greeting}, {displayName}</h1>
           <p className="text-xs text-[#94A3B8] mt-1">Booting up the catalog. Choose your audio track.</p>
         </div>
-      </div>
-
-      {/* AI Composer Quick Deck */}
-      <section className="relative rounded-3xl overflow-hidden p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 bg-gradient-to-br from-[#10153D]/90 via-[#1C1F4A]/80 to-[#10153D]/90 border border-indigo-500/10 shadow-[0_0_20px_rgba(99,102,241,0.08)]">
-        <div className="relative z-10 max-w-xl text-center md:text-left">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D946EF]/20 border border-[#D946EF]/30 text-[#D946EF] text-2xs font-bold mb-3">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#D946EF] animate-ping"></span>
-            COMPILER DECK
-          </div>
-          <h2 className="font-display font-bold text-2xl text-white tracking-tight">Generate Custom AI Soundtracks</h2>
-          <p className="text-[#94A3B8] text-xs mt-2 mb-5 leading-relaxed">Enter your prompt or select one of our curated themes to generate a fully playable YouTube playlist powered by AI recommendations.</p>
-          
-          <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-            {['Retro Cyberpunk Drive', 'Late Night Lo-fi Chill', 'Arcade Workout Pump'].map((t, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleAiSmartPlaylist(t)}
-                className="px-3.5 py-1.5 rounded-full bg-[#161B46] border border-indigo-500/20 hover:border-[#D946EF]/50 hover:bg-[#1E245D] text-3xs font-bold text-indigo-200 transition-all hover:scale-102"
-              >
-                + {t}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="relative shrink-0 flex items-center justify-center w-36 h-36 bg-[#070A1E] rounded-full border border-indigo-500/15 shadow-[inset_0_0_20px_rgba(99,102,241,0.1)]">
-          <div className="absolute inset-0 bg-[#D946EF]/5 rounded-full blur-[20px] animate-pulse"></div>
-          <Activity size={48} className="text-[#D946EF] animate-bounce" />
-        </div>
-      </section>
-
-      {/* AI Vibe Mixes (K-Means Clustering) */}
-      {likedSongs.length > 0 && (
-        <section className="relative z-10">
-          <div className="flex justify-between items-center mb-5">
+        
+        <div className="flex gap-4">
+          <div className="glass-panel px-4 py-2 rounded-2xl border border-indigo-500/20 bg-[#13173A]/80 shadow-md flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+              <Heart size={14} fill="currentColor" />
+            </div>
             <div>
-              <h2 className="font-display font-bold text-xl text-white tracking-tight flex items-center gap-2">
-                <Activity size={18} className="text-[#6366F1]" /> AI Vibe Mixes
-              </h2>
-              <p className="text-3xs text-[#94A3B8] mt-0.5">Acoustic clusters grouped automatically using K-Means clustering algorithm.</p>
+              <p className="text-3xs text-[#94A3B8] font-bold uppercase tracking-wider">Liked</p>
+              <p className="text-sm font-black text-white leading-none">{likedSongs.length}</p>
             </div>
           </div>
-
-          {loadingVibeMixes ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="animate-pulse bg-[#10153D]/40 p-5 rounded-3xl h-36 border border-indigo-500/5"></div>
-              ))}
+          <div className="glass-panel px-4 py-2 rounded-2xl border border-indigo-500/20 bg-[#13173A]/80 shadow-md flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-[#D946EF]/10 text-[#D946EF] flex items-center justify-center shrink-0">
+              <ListMusic size={14} />
             </div>
-          ) : vibeMixes.length === 0 ? (
-            <div className="glass-panel p-6 rounded-3xl text-center text-[#64748B] border border-indigo-500/5 bg-[#0C1030]/80">
-              <p className="text-xs">Clustering calculations are running in the background...</p>
+            <div>
+              <p className="text-3xs text-[#94A3B8] font-bold uppercase tracking-wider">Playlists</p>
+              <p className="text-sm font-black text-white leading-none">{playlistsCount}</p>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {vibeMixes.map((mix) => (
-                <div
-                  key={mix._id}
-                  onClick={() => onSelectPlaylist(mix)}
-                  className={`relative p-5 rounded-3xl cursor-pointer overflow-hidden border border-indigo-500/5 hover:border-indigo-500/20 transition-all duration-300 hover:scale-102 bg-gradient-to-br ${mix.gradient || 'from-[#1E1B4B] to-[#4C1D95]'} shadow-md hover:shadow-[0_0_20px_rgba(99,102,241,0.15)] flex flex-col justify-between h-36 group`}
-                >
-                  <div className="absolute right-0 bottom-0 w-24 h-24 bg-white/5 rounded-full blur-2xl group-hover:scale-110 transition-transform"></div>
-
-                  <div>
-                    <h3 className="font-display font-black text-sm text-white tracking-tight uppercase">{mix.name}</h3>
-                    <p className="text-3xs text-white/70 line-clamp-2 mt-1.5 font-medium leading-relaxed pr-6">{mix.description}</p>
-                  </div>
-
-                  <div className="flex justify-between items-center z-10">
-                    <span className="text-4xs text-white/50 bg-black/20 px-2 py-0.5 rounded-full font-mono font-bold uppercase tracking-wider">{mix.songs?.length || 0} Tracks</span>
-                    <button className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:scale-108 active:scale-95">
-                      <Play size={14} className="ml-0.5 fill-black text-black" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+          </div>
+        </div>
+      </div>
 
       {/* Grid of trending songs */}
       <section className="relative z-10">
@@ -1799,14 +1810,14 @@ const HomeView = ({ playSong, likedSongs, onToggleLike, onAiPrompt, vibeMixes = 
                 <div 
                   key={song.videoId} 
                   onClick={() => playSong(song, trending)}
-                  className="bg-[#10153D]/40 hover:bg-[#181F54] p-3.5 rounded-3xl transition-all duration-300 group cursor-pointer border border-indigo-500/5 hover:border-indigo-500/15 shadow-sm hover:shadow-[0_0_15px_rgba(99,102,241,0.1)] hover:scale-102 flex flex-col h-full"
+                  className="bg-[#10153D]/40 hover:bg-[#181F54] p-3.5 rounded-3xl group cursor-pointer border border-indigo-500/5 interactive-card flex flex-col h-full"
                 >
                   <div className="relative w-full aspect-square mb-3 rounded-2xl overflow-hidden shadow-sm shrink-0">
                     <img 
                       src={song.coverImage} 
                       alt={song.title} 
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                       loading="lazy"
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <button className="w-11 h-11 rounded-full bg-gradient-to-r from-[#6366F1] to-[#D946EF] flex items-center justify-center text-white shadow-md hover:scale-108 active:scale-95 transition-all">
@@ -2041,9 +2052,9 @@ const PlaylistView = ({ playlist, playSong, currentSong, isPlaying, likedSongs, 
       
       {/* Header card */}
       <div className="flex flex-col md:flex-row items-center md:items-end gap-6 border-b border-indigo-500/10 pb-6 mb-6 text-center md:text-left">
-        <div className="w-40 h-40 rounded-3xl bg-gradient-to-br from-[#6366F1] via-[#D946EF] to-[#0EA5E9] flex items-center justify-center shrink-0 shadow-lg border-2 border-indigo-400/20 relative group">
-          <Music size={48} className="text-white" />
-          <div className="absolute inset-0 rounded-3xl shadow-[0_0_20px_rgba(217,70,239,0.2)]"></div>
+        <div className="w-40 h-40 rounded-3xl bg-gradient-to-br from-[#6366F1] via-[#D946EF] to-[#0EA5E9] flex items-center justify-center shrink-0 shadow-lg border-2 border-indigo-400/20 relative group overflow-hidden">
+          <PlaylistCover playlist={playlist} className="w-full h-full" />
+          <div className="absolute inset-0 shadow-[inset_0_0_20px_rgba(217,70,239,0.2)]"></div>
         </div>
         
         <div className="flex-1 space-y-1">
@@ -2096,14 +2107,19 @@ const PlaylistView = ({ playlist, playSong, currentSong, isPlaying, likedSongs, 
                 <div
                   key={song._id || song.videoId || index}
                   onClick={() => playSong(song, songs)}
-                  className={`flex items-center p-2 rounded-2xl group transition-colors cursor-pointer ${isCurrent ? 'bg-[#1A1F5C]/60 text-white' : 'hover:bg-[#171C4B]/50'}`}
+                  className={`flex items-center p-2 rounded-2xl group transition-all duration-300 cursor-pointer ${isCurrent ? 'bg-[#1A1F5C]/80 text-white shadow-[0_0_15px_rgba(99,102,241,0.2)] border border-indigo-500/30' : 'hover:bg-[#171C4B]/70 border border-transparent hover:border-indigo-500/10'}`}
                 >
-                  <div className="w-8 text-center text-[#64748B] font-mono text-xs group-hover:hidden">
+                  <div className="w-10 text-center text-[#64748B] font-mono text-xs group-hover:hidden flex items-center justify-center">
                     {isCurrent && isPlaying ? (
-                      <span className="inline-block w-2.5 h-2.5 bg-[#D946EF] rounded-full animate-ping"></span>
+                      <div className="flex items-end justify-center gap-[2px] h-3 w-4">
+                        <div className="w-[3px] bg-[#D946EF] rounded-t-[1px] eq-bar"></div>
+                        <div className="w-[3px] bg-[#D946EF] rounded-t-[1px] eq-bar"></div>
+                        <div className="w-[3px] bg-[#D946EF] rounded-t-[1px] eq-bar"></div>
+                        <div className="w-[3px] bg-[#D946EF] rounded-t-[1px] eq-bar"></div>
+                      </div>
                     ) : index + 1}
                   </div>
-                  <div className="w-8 text-center text-[#D946EF] hidden group-hover:flex items-center justify-center shrink-0">
+                  <div className="w-10 text-center text-[#D946EF] hidden group-hover:flex items-center justify-center shrink-0">
                     {isCurrent && isPlaying ? <Pause size={14} /> : <Play size={14} className="fill-current" />}
                   </div>
 
@@ -2111,13 +2127,20 @@ const PlaylistView = ({ playlist, playSong, currentSong, isPlaying, likedSongs, 
                     <img 
                       src={song.coverImage || (song as any).thumbnail || ''} 
                       alt={song.title || 'Untitled Track'} 
-                      className="w-10 h-10 rounded-xl object-cover shrink-0" 
+                      loading="lazy"
+                      className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-sm group-hover:shadow-md transition-shadow" 
                     />
                     <div className="flex flex-col truncate">
                       <span className={`text-xs font-bold truncate ${isCurrent ? 'text-[#D946EF]' : 'text-[#F8FAFC]'}`}>{song.title || 'Untitled Track'}</span>
                       <span className="text-3xs text-[#94A3B8] truncate mt-0.5">{song.artist || 'Unknown Artist'}</span>
                     </div>
                   </div>
+
+                  {song.duration && (
+                    <div className="text-xs text-[#64748B] font-mono hidden md:block w-16 text-right pr-4 group-hover:text-[#94A3B8] transition-colors">
+                      {Math.floor(song.duration / 60)}:{(song.duration % 60).toString().padStart(2, '0')}
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-2 shrink-0">
                     <button 
@@ -2227,14 +2250,19 @@ const LikedSongsView = ({ songs, playSong, currentSong, isPlaying, onToggleLike,
                 <div
                   key={song._id}
                   onClick={() => playSong(song, songs)}
-                  className={`flex items-center p-2 rounded-2xl group transition-colors cursor-pointer ${isCurrent ? 'bg-[#1A1F5C]/60 text-white' : 'hover:bg-[#171C4B]/50'}`}
+                  className={`flex items-center p-2 rounded-2xl group transition-all duration-300 cursor-pointer ${isCurrent ? 'bg-[#1A1F5C]/80 text-white shadow-[0_0_15px_rgba(244,63,94,0.2)] border border-rose-500/30' : 'hover:bg-[#171C4B]/70 border border-transparent hover:border-rose-500/10'}`}
                 >
-                  <div className="w-8 text-center text-[#64748B] font-mono text-xs group-hover:hidden">
+                  <div className="w-10 text-center text-[#64748B] font-mono text-xs group-hover:hidden flex items-center justify-center">
                     {isCurrent && isPlaying ? (
-                      <span className="inline-block w-2.5 h-2.5 bg-rose-500 rounded-full animate-ping"></span>
+                      <div className="flex items-end justify-center gap-[2px] h-3 w-4">
+                        <div className="w-[3px] bg-rose-500 rounded-t-[1px] eq-bar"></div>
+                        <div className="w-[3px] bg-rose-500 rounded-t-[1px] eq-bar"></div>
+                        <div className="w-[3px] bg-rose-500 rounded-t-[1px] eq-bar"></div>
+                        <div className="w-[3px] bg-rose-500 rounded-t-[1px] eq-bar"></div>
+                      </div>
                     ) : index + 1}
                   </div>
-                  <div className="w-8 text-center text-rose-500 hidden group-hover:flex items-center justify-center shrink-0">
+                  <div className="w-10 text-center text-rose-500 hidden group-hover:flex items-center justify-center shrink-0">
                     {isCurrent && isPlaying ? <Pause size={14} /> : <Play size={14} className="fill-current" />}
                   </div>
 
@@ -2242,7 +2270,8 @@ const LikedSongsView = ({ songs, playSong, currentSong, isPlaying, onToggleLike,
                     <img 
                       src={song.coverImage} 
                       alt={song.title} 
-                      className="w-10 h-10 rounded-xl object-cover shrink-0" 
+                      loading="lazy"
+                      className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-sm group-hover:shadow-md transition-shadow" 
                     />
                     <div className="flex flex-col truncate">
                       <span className={`text-xs font-bold truncate ${isCurrent ? 'text-rose-500' : 'text-[#F8FAFC]'}`}>{song.title}</span>
@@ -2581,13 +2610,13 @@ const PlayerBar = ({
       )}
 
       {/* Player Bar component */}
-      <div className="fixed bottom-0 left-0 right-0 h-[92px] bg-[#0A0D28]/95 backdrop-blur-md border-t border-indigo-500/10 z-50 flex items-center px-4 md:px-6 justify-between shadow-lg">
+      <div className={`fixed bottom-0 left-0 right-0 h-[92px] bg-[#0A0D28]/95 backdrop-blur-md border-t border-indigo-500/10 z-50 flex items-center px-4 md:px-6 justify-between shadow-lg transition-all duration-500 ${isPlaying ? 'glow-bg border-t-indigo-500/20' : ''}`}>
         
         {/* Album Cover & Title Details */}
         <div className="flex items-center gap-3 w-[30%] min-w-[180px]">
-          <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-indigo-500/10 shadow-sm bg-indigo-950 flex items-center justify-center">
+          <div className={`relative w-12 h-12 rounded-xl overflow-hidden shrink-0 border shadow-sm flex items-center justify-center transition-all duration-300 ${isPlaying ? 'border-[#D946EF]/30 bg-[#1A1F5C] shadow-[0_0_15px_rgba(217,70,239,0.2)]' : 'border-indigo-500/10 bg-indigo-950'}`}>
             {currentSong ? (
-              <img src={currentSong.coverImage} alt="" className="w-full h-full object-cover" />
+              <img src={currentSong.coverImage} alt="" loading="lazy" className={`w-full h-full object-cover transition-transform duration-[10s] ease-linear ${isPlaying ? 'scale-110' : 'scale-100'}`} />
             ) : (
               <Music size={16} className="text-indigo-400" />
             )}

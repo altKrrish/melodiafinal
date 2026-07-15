@@ -7,7 +7,6 @@ import { protect } from '../middleware/auth.js';
 import { searchYouTube, getTrendingTracks, findYouTubeVideoForTrack } from '../utils/youtubeService.js';
 import { searchSpotify } from '../utils/spotifyService.js';
 import { classifyMood } from '../utils/classifier.js';
-import { runKMeansClustering } from '../utils/kmeans.js';
 
 const router = express.Router();
 
@@ -29,61 +28,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Expose Vibe Mixes (K-Means Clustering on Liked Songs)
-router.get('/vibe-mixes', protect, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.userId).populate('likedSongs');
-    if (!user) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    const likedSongs = user.likedSongs || [];
-    if (likedSongs.length === 0) {
-      return res.json([]);
-    }
-
-    // Run K-Means clustering pipeline (k=3 vibes)
-    const clusters = runKMeansClustering(likedSongs, 3);
-    const vibeMixPlaylists = [];
-
-    for (const cluster of clusters) {
-      const name = cluster.label;
-      let playlist = await Playlist.findOne({ owner: user._id, name });
-
-      if (!playlist) {
-        playlist = await Playlist.create({
-          name,
-          description: `K-Means vibe mix containing acoustic clusters of your saved songs. Features: ${cluster.songs.slice(0, 3).map(s => s.title).join(', ')}.`,
-          owner: user._id,
-          songs: cluster.songs.map(s => s._id),
-          isSmartPlaylist: true,
-          isPublic: false
-        });
-        user.playlists.push(playlist._id);
-      } else {
-        playlist.songs = cluster.songs.map(s => s._id);
-        playlist.description = `K-Means vibe mix containing acoustic clusters of your saved songs. Features: ${cluster.songs.slice(0, 3).map(s => s.title).join(', ')}.`;
-        await playlist.save();
-      }
-
-      const populated = await Playlist.findById(playlist._id).populate('songs');
-      vibeMixPlaylists.push({
-        _id: populated._id,
-        name: populated.name,
-        description: populated.description,
-        songs: populated.songs,
-        gradient: cluster.gradient,
-        coverImage: populated.coverImage
-      });
-    }
-
-    await user.save();
-    res.json(vibeMixPlaylists);
-  } catch (err) {
-    console.error('Error compiling vibe mixes:', err);
-    res.status(500).json({ error: 'Failed to compile vibe mixes.' });
-  }
-});
 
 // Get trending songs (Spotify primary, YouTube fallback) and classify mood
 router.get('/trending', async (req, res) => {
