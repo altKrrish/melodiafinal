@@ -98,6 +98,31 @@ const searchYouTubeFallback = async (query) => {
 };
 
 /**
+ * Finds a YouTube video for a given track (title + artist) using yt-search (no API key required).
+ * Used to resolve a playable YouTube videoId for Spotify search results.
+ * @param {string} title Song title
+ * @param {string} artist Artist name
+ * @returns {Promise<{videoId: string, audioUrl: string, coverImage: string} | null>}
+ */
+export const findYouTubeVideoForTrack = async (title, artist) => {
+  try {
+    const query = `${title} ${artist} official audio`;
+    logger.info(`Finding YouTube video for track: "${query}"`);
+    const result = await ytSearch(query);
+    const video = result.videos?.[0];
+    if (!video) return null;
+    return {
+      videoId: video.videoId,
+      audioUrl: `https://www.youtube.com/watch?v=${video.videoId}`,
+      coverImage: video.image || video.thumbnail || ''
+    };
+  } catch (err) {
+    logger.error(`findYouTubeVideoForTrack failed: ${err.message}`);
+    return null;
+  }
+};
+
+/**
  * Gets trending tracks (most popular music videos) from YouTube
  * @returns {Promise<Array>} List of mapped track objects
  */

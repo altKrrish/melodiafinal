@@ -4,7 +4,8 @@ import Song from '../models/Song.js';
 import User from '../models/User.js';
 import Playlist from '../models/Playlist.js';
 import { protect } from '../middleware/auth.js';
-import { searchYouTube, getTrendingTracks } from '../utils/youtubeService.js';
+import { searchYouTube, getTrendingTracks, findYouTubeVideoForTrack } from '../utils/youtubeService.js';
+import { searchSpotify } from '../utils/spotifyService.js';
 import { classifyMood } from '../utils/classifier.js';
 import { runKMeansClustering } from '../utils/kmeans.js';
 
@@ -84,13 +85,67 @@ router.get('/vibe-mixes', protect, async (req, res) => {
   }
 });
 
-// Get trending songs from YouTube
+// Get trending songs (Spotify primary, YouTube fallback) and classify mood
 router.get('/trending', async (req, res) => {
   try {
+    // 1. Primary: Spotify trending playlist
+    const spotifyData = await getTrendingTracks();
+    const items = spotifyData?.items || [];
+
+    if (items.length > 0) {
+      const mapped = await Promise.all(
+        items.slice(0, 15).map(async (item) => {
+          const track = item.track;
+          if (!track) return null;
+          const title = track.name;
+          const artist = track.artists?.map(a => a.name).join(', ') || 'Unknown Artist';
+          const coverImage = track.album?.images?.[0]?.url || '';
+          const duration = Math.round((track.duration_ms || 180000) / 1000);
+          const spotifyId = track.id;
+
+          let youtube = null;
+          try {
+            youtube = await findYouTubeVideoForTrack(title, artist);
+          } catch {
+            youtube = null;
+          }
+
+          const videoId = youtube?.videoId || spotifyId;
+          const audioUrl = youtube?.audioUrl || `https://www.youtube.com/watch?v=${spotifyId}`;
+          const finalCover = youtube?.coverImage || coverImage;
+
+          let predictedMoods = ['Focused'];
+          try {
+            predictedMoods = classifyMood(title, [artist]);
+          } catch {
+            predictedMoods = ['Focused'];
+          }
+
+          return {
+            _id: videoId,
+            videoId,
+            spotifyId,
+            title,
+            artist,
+            coverImage: finalCover,
+            duration,
+            audioUrl,
+            source: youtube ? 'youtube' : 'spotify',
+            predictedMoods
+          };
+        })
+      );
+      return res.json(mapped.filter(Boolean));
+    }
+
+    // 2. Fallback: YouTube trending
     const youtubeSongs = await getTrendingTracks();
-    // Classify mood of trending tracks
     const taggedSongs = youtubeSongs.map(song => {
-      song.predictedMoods = classifyMood(song.title, [song.artist]);
+      try {
+        song.predictedMoods = classifyMood(song.title, [song.artist]);
+      } catch {
+        song.predictedMoods = ['Focused'];
+      }
       return song;
     });
     res.json(taggedSongs);
@@ -100,7 +155,7 @@ router.get('/trending', async (req, res) => {
   }
 });
 
-// Search songs using YouTube and classify their mood in real-time
+// Search songs using Spotify (metadata) + YouTube (playback) and classify their mood in real-time
 router.get('/search', async (req, res) => {
   try {
     const { q } = req.query;
@@ -109,15 +164,68 @@ router.get('/search', async (req, res) => {
       return res.json([]);
     }
 
-    const youtubeSongs = await searchYouTube(q);
-    
-    // Run real-time mood classification tagging on search results
-    const taggedSongs = youtubeSongs.map(song => {
-      song.predictedMoods = classifyMood(song.title, [song.artist]);
-      return song;
-    });
+    // 1. Primary: Spotify search (no quota limits)
+    const spotifyData = await searchSpotify(q);
+    const tracks = spotifyData?.tracks?.items || [];
 
-    res.json(taggedSongs);
+    if (tracks.length === 0) {
+      // 2. Fallback: YouTube Data API / yt-search
+      const youtubeSongs = await searchYouTube(q);
+      const taggedSongs = youtubeSongs.map(song => {
+        try {
+          song.predictedMoods = classifyMood(song.title, [song.artist]);
+        } catch {
+          song.predictedMoods = ['Focused'];
+        }
+        return song;
+      });
+      return res.json(taggedSongs);
+    }
+
+    // 3. Map Spotify tracks -> unified song objects, resolving YouTube video for playback
+    const mappedSongs = await Promise.all(
+      tracks.slice(0, 15).map(async (track) => {
+        const title = track.name;
+        const artist = track.artists?.map(a => a.name).join(', ') || 'Unknown Artist';
+        const coverImage = track.album?.images?.[0]?.url || '';
+        const duration = Math.round((track.duration_ms || 180000) / 1000);
+        const spotifyId = track.id;
+
+        // Resolve YouTube video for playback
+        let youtube = null;
+        try {
+          youtube = await findYouTubeVideoForTrack(title, artist);
+        } catch {
+          youtube = null;
+        }
+
+        const videoId = youtube?.videoId || spotifyId;
+        const audioUrl = youtube?.audioUrl || `https://www.youtube.com/watch?v=${spotifyId}`;
+        const finalCover = youtube?.coverImage || coverImage;
+
+        let predictedMoods = ['Focused'];
+        try {
+          predictedMoods = classifyMood(title, [artist]);
+        } catch {
+          predictedMoods = ['Focused'];
+        }
+
+        return {
+          _id: videoId,
+          videoId,
+          spotifyId,
+          title,
+          artist,
+          coverImage: finalCover,
+          duration,
+          audioUrl,
+          source: youtube ? 'youtube' : 'spotify',
+          predictedMoods
+        };
+      })
+    );
+
+    res.json(mappedSongs);
   } catch (err) {
     console.error('Error searching songs:', err);
     res.status(500).json({ error: 'Failed to search songs.' });

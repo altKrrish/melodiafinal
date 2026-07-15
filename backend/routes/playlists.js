@@ -14,6 +14,33 @@ import { searchYouTube } from '../utils/youtubeService.js';
 
 const router = express.Router();
 
+// Get all public playlists for the Community tab (discoverability)
+router.get(
+  '/community',
+  asyncHandler(async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 24, 50);
+    const skip = (page - 1) * limit;
+
+    const playlists = await Playlist.find({ isPublic: true })
+      .populate('owner', 'username profilePicture')
+      .populate('songs', 'title artist coverImage duration videoId')
+      .sort({ playCount: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Playlist.countDocuments({ isPublic: true });
+
+    res.status(200).json({
+      success: true,
+      data: playlists,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+    });
+  }),
+);
+
 router.post(
   '/ai-generate',
   asyncHandler(async (req, res) => {
@@ -136,14 +163,15 @@ router.post(
   protect,
   validatePlaylist,
   asyncHandler(async (req, res) => {
-    const { name, description, coverImage, songs } = req.body;
+    const { name, description, coverImage, songs, isPublic } = req.body;
 
     const playlist = await Playlist.create({
       name,
       description,
       coverImage,
       owner: req.user.userId,
-      songs: []
+      songs: [],
+      isPublic: Boolean(isPublic)
     });
     
     // Support bulk insertion of songs during playlist creation

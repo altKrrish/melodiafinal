@@ -9,7 +9,7 @@ import {
   MoreVertical, Share2, Plus, SlidersHorizontal, 
   User, History, BarChart3, TrendingUp, Activity, Users,
   Music, Trash2, ListMusic, CheckCircle2, ChevronRight, X,
-  Mic, Upload, Link, QrCode
+  Mic, Upload, Link, QrCode, Globe
 } from 'lucide-react';
 
 export interface Song {
@@ -112,22 +112,28 @@ const AVATARS = [
 ];
 
 // I. COMMUNITY VIEW
-const CommunityView = ({ onViewProfile }: any) => {
+const CommunityView = ({ onViewProfile, onSelectPlaylist }: any) => {
   const [users, setUsers] = useState<any[]>([]);
+  const [playlists, setPlaylists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<'people' | 'playlists'>('playlists');
 
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchData = async () => {
       try {
-        const res = await axios.get(`${API_URL}/users/discover`);
-        setUsers(res.data.users);
+        const [usersRes, playlistsRes] = await Promise.all([
+          axios.get(`${API_URL}/users/discover`),
+          axios.get(`${API_URL}/playlists/community?limit=24`)
+        ]);
+        setUsers(usersRes.data.users || []);
+        setPlaylists(playlistsRes.data.data || []);
       } catch (err) {
-        console.error('Failed to fetch community users', err);
+        console.error('Failed to fetch community data', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchUsers();
+    fetchData();
   }, []);
 
   return (
@@ -143,10 +149,48 @@ const CommunityView = ({ onViewProfile }: any) => {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setTab('playlists')}
+          className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${tab === 'playlists' ? 'bg-gradient-to-r from-[#6366F1] to-[#D946EF] text-white' : 'bg-[#13173A] text-[#94A3B8] hover:text-white'}`}
+        >
+          Public Playlists
+        </button>
+        <button
+          onClick={() => setTab('people')}
+          className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${tab === 'people' ? 'bg-gradient-to-r from-[#6366F1] to-[#D946EF] text-white' : 'bg-[#13173A] text-[#94A3B8] hover:text-white'}`}
+        >
+          People
+        </button>
+      </div>
+
       {loading ? (
         <div className="flex justify-center items-center py-20">
           <div className="w-8 h-8 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
         </div>
+      ) : tab === 'playlists' ? (
+        playlists.length === 0 ? (
+          <div className="text-center py-12 text-[#64748B]">
+            <p className="text-xs">No public playlists yet. Make your playlists public to share them here!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {playlists.map((p: any) => (
+              <div 
+                key={p._id} 
+                onClick={() => onSelectPlaylist(p)}
+                className="glass-panel p-4 rounded-3xl border border-indigo-500/10 bg-[#0C1030]/80 hover:bg-[#13173A] transition-colors cursor-pointer group flex flex-col"
+              >
+                <div className="aspect-square bg-gradient-to-br from-[#1E2555] to-[#0A0D28] rounded-2xl mb-3 flex items-center justify-center border border-indigo-500/5 group-hover:border-indigo-500/20 relative overflow-hidden">
+                  <Music size={24} className="text-indigo-400/50" />
+                </div>
+                <h4 className="text-sm font-bold text-white truncate">{p.name}</h4>
+                <p className="text-[10px] text-[#64748B] mt-1">{p.songs?.length || 0} Tracks • {p.owner?.username || 'Unknown'}</p>
+              </div>
+            ))}
+          </div>
+        )
       ) : users.length === 0 ? (
         <div className="text-center py-12 text-[#64748B]">
           <p className="text-xs">No other users found in the community yet.</p>
@@ -304,6 +348,18 @@ const UserProfileView = ({ userId, playSong, onBack, onSelectPlaylist }: any) =>
                 className="w-full bg-[#13173A] border border-indigo-500/20 rounded-full px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D946EF]/50 focus:ring-1 focus:ring-[#D946EF]/50 transition-all placeholder:text-slate-600"
               />
             </div>
+            <div className="mb-6 flex items-center gap-3 ml-1">
+              <input
+                type="checkbox"
+                id="playlistPublic"
+                checked={newPlaylistPublic}
+                onChange={(e) => setNewPlaylistPublic(e.target.checked)}
+                className="w-4 h-4 rounded border-indigo-500/30 bg-[#13173A] text-[#D946EF] focus:ring-[#D946EF]/50 cursor-pointer"
+              />
+              <label htmlFor="playlistPublic" className="text-xs font-bold text-[#94A3B8] cursor-pointer select-none">
+                Make public (visible in Community)
+              </label>
+            </div>
             <div className="flex justify-end gap-3">
               <button 
                 onClick={() => setShowCreatePlaylistModal(false)}
@@ -421,6 +477,7 @@ export default function App() {
   const [showAiPromptModal, setShowAiPromptModal] = useState(false);
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [newPlaylistPublic, setNewPlaylistPublic] = useState(false);
   const [aiPromptInput, setAiPromptInput] = useState('');
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -693,7 +750,8 @@ export default function App() {
     try {
       const res = await axios.post(`${API_URL}/playlists`, {
         name: newPlaylistName,
-        description: 'Retro game-inspired soundtrack curated by Melodia.'
+        description: 'Retro game-inspired soundtrack curated by Melodia.',
+        isPublic: newPlaylistPublic
       });
       if (res.data.success) {
         const newPlaylist = res.data.data;
@@ -705,6 +763,7 @@ export default function App() {
         showToast(`Playlist "${newPlaylistName}" created!`);
         setShowCreatePlaylistModal(false);
         setNewPlaylistName('');
+        setNewPlaylistPublic(false);
       }
     } catch (err) {
       console.error('Playlist creation failed:', err);
@@ -998,6 +1057,22 @@ export default function App() {
     } catch (err) {
       // If share API fails (e.g., already shared), still show modal with existing data
       setShareModalPlaylist(playlist);
+    }
+  };
+
+  // Toggle playlist public/private visibility (community tab)
+  const handleTogglePublic = async (playlist: Playlist) => {
+    try {
+      const newPublic = !playlist.isPublic;
+      const res = await axios.put(`${API_URL}/playlists/${playlist._id}`, { isPublic: newPublic });
+      if (res.data.success) {
+        const updatedPlaylist = { ...playlist, isPublic: newPublic, shareLink: res.data.data?.shareLink || playlist.shareLink };
+        setSelectedPlaylist(updatedPlaylist);
+        setPlaylists(prev => prev.map(p => p._id === playlist._id ? updatedPlaylist : p));
+        showToast(newPublic ? 'Playlist is now public!' : 'Playlist is now private.');
+      }
+    } catch (err) {
+      console.error('Failed to toggle playlist visibility:', err);
     }
   };
 
@@ -1423,6 +1498,7 @@ export default function App() {
                       onToggleLike={handleToggleLike} 
                       onRemoveSong={handleRemoveSongFromPlaylist} 
                       onShare={(e) => handleSharePlaylist(selectedPlaylist, e)}
+                      onTogglePublic={handleTogglePublic}
                     />
                   </PlaylistErrorBoundary>
                 )}
@@ -1458,6 +1534,10 @@ export default function App() {
                     onViewProfile={(userId: string) => {
                       setSelectedUserId(userId);
                       setCurrentView('user-profile');
+                    }}
+                    onSelectPlaylist={(p: Playlist) => {
+                      setSelectedPlaylist(p);
+                      setCurrentView('playlist');
                     }}
                   />
                 )}
@@ -1952,8 +2032,9 @@ const SearchView = ({ playSong, likedSongs, onToggleLike, onAddPlaylist }: any) 
 };
 
 // C. PLAYLIST DETAILS VIEW PANEL
-const PlaylistView = ({ playlist, playSong, currentSong, isPlaying, likedSongs, onToggleLike, onRemoveSong, onShare }: any) => {
+const PlaylistView = ({ playlist, playSong, currentSong, isPlaying, likedSongs, onToggleLike, onRemoveSong, onShare, onTogglePublic }: any) => {
   const songs = playlist?.tracks || playlist?.songs || [];
+  const isOwner = !playlist?.owner || playlist?.owner?._id === undefined || playlist?.owner?.username !== undefined || true;
 
   return (
     <div className="px-6 pt-6 relative z-10 max-w-5xl mx-auto pb-10">
@@ -1987,6 +2068,13 @@ const PlaylistView = ({ playlist, playSong, currentSong, isPlaying, likedSongs, 
             title="Copy Public Link"
           >
             <Share2 size={16} />
+          </button>
+          <button 
+            onClick={() => onTogglePublic && onTogglePublic(playlist)}
+            className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors shadow-sm ${playlist?.isPublic ? 'bg-[#D946EF]/20 border-[#D946EF]/30 text-[#D946EF]' : 'bg-[#13173A] border-indigo-500/10 text-[#94A3B8] hover:text-white hover:bg-[#1A1F52]'}`}
+            title={playlist?.isPublic ? 'Visible in Community (click to hide)' : 'Make Public (visible in Community)'}
+          >
+            <Globe size={16} />
           </button>
         </div>
       </div>
