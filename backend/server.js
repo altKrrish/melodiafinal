@@ -32,7 +32,10 @@ app.use(compression());
 
 // CORS
 app.use(cors({
-  origin: config.CORS_ORIGIN.split(','),
+  origin: function (origin, callback) {
+    // Dynamically allow the requesting origin to prevent CORS blocks on Vercel
+    callback(null, origin || true);
+  },
   credentials: true,
   optionsSuccessStatus: 200,
 }));
