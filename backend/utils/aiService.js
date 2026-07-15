@@ -74,7 +74,7 @@ export const generateSmartPlaylistName = async (criteria) => {
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'tencent/hy3:free',
+        model: 'google/gemini-2.5-flash:free',
         messages: [{ role: 'user', content: prompt }],
       },
       {
@@ -106,7 +106,7 @@ export const generatePlaylistDescription = async (name, criteria) => {
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'tencent/hy3:free',
+        model: 'google/gemini-2.5-flash:free',
         messages: [{ role: 'user', content: prompt }],
       },
       {
@@ -133,11 +133,11 @@ export const generateAiPlaylist = async (userPrompt) => {
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'tencent/hy3:free',
+        model: 'google/gemini-2.5-flash:free',
         messages: [
           {
             role: 'system',
-            content: 'You are a music recommendation AI. Return ONLY a JSON object containing a creative "name", a short "description", and an array of 30 "songs" matching the user\'s prompt. Each song must have "title" and "artist" keys. Do not include any explanation, backticks, or markdown formatting. Only return the raw JSON object.'
+            content: 'You are a music recommendation AI. Return ONLY a valid JSON object containing a creative "name" (string), a short "description" (string), and an array of exactly 30 "songs" matching the user\'s prompt. Each song object must have "title" (string) and "artist" (string) keys. DO NOT wrap the response in markdown code blocks or backticks. ONLY RETURN RAW JSON.'
           },
           {
             role: 'user',

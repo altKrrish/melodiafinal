@@ -136,14 +136,55 @@ router.post(
   protect,
   validatePlaylist,
   asyncHandler(async (req, res) => {
-    const { name, description, coverImage } = req.body;
+    const { name, description, coverImage, songs } = req.body;
 
     const playlist = await Playlist.create({
       name,
       description,
       coverImage,
       owner: req.user.userId,
+      songs: []
     });
+    
+    // Support bulk insertion of songs during playlist creation
+    if (songs && Array.isArray(songs) && songs.length > 0) {
+      const songIds = [];
+      const Song = (await import('../models/Song.js')).default;
+      
+      for (const track of songs) {
+        const targetSongId = track.videoId || track.songId;
+        if (!targetSongId) continue;
+        
+        const isObjectId = /^[0-9a-fA-F]{24}$/.test(targetSongId);
+        let songDoc;
+        
+        if (isObjectId) {
+          songDoc = await Song.findById(targetSongId);
+        } else {
+          songDoc = await Song.findOne({ videoId: targetSongId });
+        }
+        
+        if (!songDoc && track.title) {
+          songDoc = new Song({
+            title: track.title,
+            artist: track.artist || 'Unknown Artist',
+            coverImage: track.coverImage || '',
+            duration: track.duration || 180,
+            audioUrl: `https://www.youtube.com/watch?v=${targetSongId}`,
+            videoId: targetSongId,
+            source: 'youtube'
+          });
+          await songDoc.save();
+        }
+        
+        if (songDoc && !songIds.includes(songDoc._id)) {
+          songIds.push(songDoc._id);
+        }
+      }
+      
+      playlist.songs = songIds;
+      await playlist.save();
+    }
 
     logger.info(`New playlist created: ${name} by user ${req.user.userId}`);
 

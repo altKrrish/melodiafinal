@@ -276,6 +276,123 @@ const UserProfileView = ({ userId, playSong, onBack, onSelectPlaylist }: any) =>
           </div>
         )}
       </div>
+      
+      {/* Create Playlist Modal */}
+      {showCreatePlaylistModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm glass-panel p-6 rounded-3xl border border-indigo-500/20 bg-[#0C1030] shadow-[0_0_40px_rgba(99,102,241,0.2)]">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-display font-bold text-lg text-white flex items-center gap-2">
+                <Music size={18} className="text-indigo-400" /> New Playlist
+              </h3>
+              <button 
+                onClick={() => setShowCreatePlaylistModal(false)}
+                className="p-1 rounded-full hover:bg-[#1E2555] text-[#94A3B8] hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="mb-6">
+              <label className="block text-xs font-bold text-[#94A3B8] mb-2 ml-1">Playlist Name</label>
+              <input
+                type="text"
+                autoFocus
+                placeholder="Enter a retro name..."
+                value={newPlaylistName}
+                onChange={(e) => setNewPlaylistName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreatePlaylist()}
+                className="w-full bg-[#13173A] border border-indigo-500/20 rounded-full px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D946EF]/50 focus:ring-1 focus:ring-[#D946EF]/50 transition-all placeholder:text-slate-600"
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setShowCreatePlaylistModal(false)}
+                className="px-4 py-2 rounded-full text-xs font-bold text-[#94A3B8] hover:text-white hover:bg-[#1E2555] transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleCreatePlaylist}
+                disabled={!newPlaylistName.trim()}
+                className="btn-primary px-5 py-2 rounded-full font-bold text-xs bg-gradient-to-r from-[#6366F1] to-[#D946EF] text-white disabled:opacity-50 hover:scale-105 transition-all"
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Composer Modal */}
+      {showAiPromptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg glass-panel p-6 rounded-3xl border border-indigo-500/20 bg-[#0C1030] shadow-[0_0_40px_rgba(99,102,241,0.2)]">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-display font-bold text-lg text-white flex items-center gap-2">
+                <Activity size={18} className="text-[#D946EF]" /> Generate Custom AI Soundtrack
+              </h3>
+              {!isAiProcessing && (
+                <button 
+                  onClick={() => setShowAiPromptModal(false)}
+                  className="p-1 rounded-full hover:bg-[#1E2555] text-[#94A3B8] hover:text-white transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+            
+            <div className="mb-6 relative">
+              <label className="block text-xs font-bold text-[#94A3B8] mb-2 ml-1">Describe Your Vibe</label>
+              <textarea
+                autoFocus
+                placeholder='e.g., "retro night drive with heavy synthwave beats" or "relaxing study session"'
+                value={aiPromptInput}
+                onChange={(e) => setAiPromptInput(e.target.value)}
+                disabled={isAiProcessing}
+                rows={3}
+                className="w-full bg-[#13173A] border border-indigo-500/20 rounded-2xl p-4 text-sm text-white focus:outline-none focus:border-[#D946EF]/50 focus:ring-1 focus:ring-[#D946EF]/50 transition-all placeholder:text-slate-600 resize-none disabled:opacity-50"
+              />
+              {isAiProcessing && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0C1030]/80 backdrop-blur-sm rounded-2xl z-10">
+                  <div className="w-8 h-8 border-2 border-[#D946EF] border-t-transparent rounded-full animate-spin mb-3"></div>
+                  <p className="text-xs font-bold text-indigo-200 animate-pulse">AI is compiling tracks...</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex flex-wrap gap-2 mb-6">
+              <span className="text-3xs text-[#94A3B8] font-bold w-full ml-1">Quick Prompts:</span>
+              {['Cyberpunk Neon City', '80s Workout Montage', 'Chill Lofi Beats', 'Boss Battle Epic'].map((t, idx) => (
+                <button
+                  key={idx}
+                  disabled={isAiProcessing}
+                  onClick={() => setAiPromptInput(t)}
+                  className="px-3 py-1 rounded-full bg-[#161B46] border border-indigo-500/20 hover:border-[#D946EF]/50 hover:bg-[#1E245D] text-3xs font-bold text-indigo-200 transition-all disabled:opacity-50"
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setShowAiPromptModal(false)}
+                disabled={isAiProcessing}
+                className="px-4 py-2 rounded-full text-xs font-bold text-[#94A3B8] hover:text-white hover:bg-[#1E2555] transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => handleAiSmartPlaylist()}
+                disabled={!aiPromptInput.trim() || isAiProcessing}
+                className="btn-primary px-5 py-2 rounded-full font-bold text-xs bg-gradient-to-r from-[#6366F1] to-[#D946EF] text-white disabled:opacity-50 hover:scale-105 transition-all flex items-center gap-2"
+              >
+                {isAiProcessing ? 'Generating...' : 'Generate Soundtrack'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -300,6 +417,12 @@ export default function App() {
   const [likedSongs, setLikedSongs] = useState<Song[]>([]);
   const [showAddToPlaylistModal, setShowAddToPlaylistModal] = useState(false);
   const [songToAddToPlaylist, setSongToAddToPlaylist] = useState<Song | null>(null);
+  
+  const [showAiPromptModal, setShowAiPromptModal] = useState(false);
+  const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [aiPromptInput, setAiPromptInput] = useState('');
+  const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [showQueueDrawer, setShowQueueDrawer] = useState(false);
   const [vibeMixes, setVibeMixes] = useState<any[]>([]);
@@ -565,12 +688,11 @@ export default function App() {
 
   // Create custom playlist
   const handleCreatePlaylist = async () => {
-    const name = prompt('Enter a name for your retro playlist:');
-    if (!name) return;
+    if (!newPlaylistName.trim()) return;
 
     try {
       const res = await axios.post(`${API_URL}/playlists`, {
-        name,
+        name: newPlaylistName,
         description: 'Retro game-inspired soundtrack curated by Melodia.'
       });
       if (res.data.success) {
@@ -580,7 +702,9 @@ export default function App() {
         } else {
           fetchUserPlaylists();
         }
-        showToast(`Playlist "${name}" created!`);
+        showToast(`Playlist "${newPlaylistName}" created!`);
+        setShowCreatePlaylistModal(false);
+        setNewPlaylistName('');
       }
     } catch (err) {
       console.error('Playlist creation failed:', err);
@@ -676,54 +800,47 @@ export default function App() {
 
   // AI Generated Smart Playlist composer
   const handleAiSmartPlaylist = async (customPrompt?: string) => {
-    let promptText = customPrompt;
-    if (!promptText) {
-      promptText = prompt('Enter your current vibe or mood (e.g., "retro night drive with heavy synthwave beats" or "relaxing study session"):') || '';
-    }
-    if (!promptText) return;
+    const promptText = customPrompt || aiPromptInput;
+    if (!promptText.trim()) return;
 
-    showToast('AI is composing your vibe...');
+    setIsAiProcessing(true);
+    showToast('AI is compiling your vibe...');
     try {
       const res = await axios.post(`${API_URL}/playlists/ai-generate`, { prompt: promptText });
       const aiPlaylist = res.data;
 
       if (aiPlaylist.songs && aiPlaylist.songs.length > 0) {
-        // Save this playlist under user's catalog
+        // Save this playlist under user's catalog with all songs attached
         const saveRes = await axios.post(`${API_URL}/playlists`, {
           name: aiPlaylist.name || 'AI Mood Vibe',
-          description: aiPlaylist.description || `AI composed mix for: "${promptText}"`
+          description: aiPlaylist.description || `AI composed mix for: "${promptText}"`,
+          songs: aiPlaylist.songs
         });
 
         const newPlaylist = saveRes.data.data;
 
-        // Add all compiled AI tracks into playlist
-        for (const track of aiPlaylist.songs) {
-          await axios.post(`${API_URL}/playlists/${newPlaylist._id}/songs`, {
-            videoId: track.videoId,
-            title: track.title,
-            artist: track.artist,
-            coverImage: track.coverImage,
-            duration: track.duration
-          });
-        }
-
         // Reload lists, select and play it
-        fetchUserPlaylists();
+        await fetchUserPlaylists();
         const finalPlaylistRes = await axios.get(`${API_URL}/playlists/${newPlaylist._id}`);
         const playlistData = finalPlaylistRes.data.data;
+        
         setSelectedPlaylist(playlistData);
         setCurrentView('playlist');
         
         if (playlistData.songs && playlistData.songs.length > 0) {
           playSong(playlistData.songs[0], playlistData.songs);
         }
-        showToast('AI Playlist created and playing!');
+        showToast('AI Playlist compiled and playing!');
+        setShowAiPromptModal(false);
+        setAiPromptInput('');
       } else {
-        showToast('Could not compile tracks for that vibe.');
+        showToast('AI failed to find songs. Try a different prompt.');
       }
     } catch (err) {
-      console.error('AI compilation failed:', err);
-      showToast('AI composer encountered an error.');
+      console.error('AI generation failed:', err);
+      showToast('AI composer error.');
+    } finally {
+      setIsAiProcessing(false);
     }
   };
 
@@ -1165,7 +1282,7 @@ export default function App() {
                   <div className="flex items-center justify-between px-3 mb-2">
                     <p className="text-2xs font-extrabold text-[#64748B] uppercase tracking-widest">Library</p>
                     <button 
-                      onClick={handleCreatePlaylist} 
+                      onClick={() => setShowCreatePlaylistModal(true)} 
                       className="p-1 rounded-full text-[#94A3B8] hover:text-white hover:bg-[#1E2555] transition-all"
                       title="Create Custom Playlist"
                     >
@@ -1251,7 +1368,7 @@ export default function App() {
                 <div className="flex items-center gap-3">
                   {/* AI Quick Prompt Button */}
                   <button 
-                    onClick={() => handleAiSmartPlaylist()}
+                    onClick={() => setShowAiPromptModal(true)}
                     className="btn-primary px-4 py-1.5 rounded-full font-bold text-xs bg-gradient-to-r from-[#6366F1] to-[#D946EF] text-white shadow-[0_0_10px_rgba(99,102,241,0.3)] hover:scale-102 transition-all flex items-center gap-1.5"
                   >
                     <Activity size={14} className="animate-pulse" />
@@ -1515,7 +1632,7 @@ const HomeView = ({ playSong, likedSongs, onToggleLike, onAiPrompt, vibeMixes = 
             {['Retro Cyberpunk Drive', 'Late Night Lo-fi Chill', 'Arcade Workout Pump'].map((t, idx) => (
               <button
                 key={idx}
-                onClick={() => onAiPrompt(t)}
+                onClick={() => handleAiSmartPlaylist(t)}
                 className="px-3.5 py-1.5 rounded-full bg-[#161B46] border border-indigo-500/20 hover:border-[#D946EF]/50 hover:bg-[#1E245D] text-3xs font-bold text-indigo-200 transition-all hover:scale-102"
               >
                 + {t}
