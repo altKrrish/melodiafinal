@@ -19,7 +19,17 @@ let mongod;
 const connectDB = async () => {
   try {
     let uri = config.MONGO_URI;
-    
+
+    // In Vercel serverless environment, MongoMemoryServer will timeout and fail
+    if (process.env.VERCEL && (!uri || uri.includes('localhost'))) {
+      logger.warn('Skipping MongoDB connection in Vercel without a remote URI to prevent timeouts.');
+      const { applyMongooseMock } = await import('./mockMongoose.js');
+      applyMongooseMock();
+      // Set a dummy connection state so Mongoose queries don't buffer and wait indefinitely
+      mongoose.connection.readyState = 1;
+      return mongoose.connection;
+    }
+
     // Fallback to in-memory server if local connection string or missing
     if (!uri || uri.includes('localhost')) {
       logger.info('Using in-memory MongoDB for local development');
