@@ -1,4 +1,5 @@
 import express from 'express';
+import jwt from 'jsonwebtoken';
 import config from '../config/index.js';
 import logger from '../config/logger.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
@@ -8,9 +9,58 @@ import Playlist from '../models/Playlist.js';
 import Song from '../models/Song.js';
 import User from '../models/User.js';
 import { v4 as uuidv4 } from 'uuid';
-import { generateSmartPlaylistName, generatePlaylistDescription } from '../utils/aiService.js';
+import { generateSmartPlaylistName, generatePlaylistDescription, generateAiPlaylist, generateSmartPlaylistFromLikes } from '../utils/aiService.js';
+import { searchYouTube } from '../utils/youtubeService.js';
 
 const router = express.Router();
+
+router.post(
+  '/ai-generate',
+  asyncHandler(async (req, res) => {
+    const { prompt } = req.body;
+    if (!prompt) {
+      return res.status(400).json({
+        success: false,
+        message: 'Prompt is required'
+      });
+    }
+
+    logger.info(`AI Playlist request received for prompt: "${prompt}"`);
+    const result = await generateAiPlaylist(prompt);
+    
+    // Resolve each recommended song on YouTube
+    const songs = [];
+    for (const recommendedSong of (result.songs || [])) {
+      try {
+        const searchQuery = `${recommendedSong.title} ${recommendedSong.artist}`;
+        const searchResults = await searchYouTube(searchQuery);
+        if (searchResults && searchResults.length > 0) {
+          const track = searchResults[0];
+          songs.push({
+            _id: track.videoId,
+            videoId: track.videoId,
+            title: track.title,
+            artist: track.artist,
+            genre: 'AI Recommended',
+            duration: track.duration || 180,
+            audioUrl: track.audioUrl,
+            coverImage: track.coverImage,
+            source: 'youtube'
+          });
+        }
+      } catch (err) {
+        logger.error(`Failed to resolve AI song on YouTube: ${recommendedSong.title} - ${err.message}`);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      name: result.name || 'AI Playlist',
+      description: result.description || `Generated playlist for: ${prompt}`,
+      songs
+    });
+  })
+);
 
 router.get(
   '/',
@@ -30,9 +80,30 @@ router.get(
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
-    const playlist = await Playlist.findById(req.params.id)
-      .populate('owner', 'username profilePicture')
-      .populate('songs');
+    // 1. Try to extract and decode token optionally
+    let userId = null;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, config.JWT_SECRET);
+        userId = decoded.userId;
+      } catch (err) {
+        // invalid token, ignore
+      }
+    }
+
+    // 2. Find playlist by ID or shareLink
+    let playlist;
+    const mongoose = (await import('mongoose')).default;
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      playlist = await Playlist.findById(req.params.id)
+        .populate('owner', 'username profilePicture')
+        .populate('songs');
+    } else {
+      playlist = await Playlist.findOne({ shareLink: req.params.id })
+        .populate('owner', 'username profilePicture')
+        .populate('songs');
+    }
 
     if (!playlist) {
       return res.status(404).json({
@@ -41,7 +112,9 @@ router.get(
       });
     }
 
-    if (!playlist.isPublic && (!req.user || playlist.owner._id.toString() !== req.user.userId)) {
+    // 3. Permission check
+    const ownerId = playlist.owner ? (playlist.owner._id || playlist.owner) : null;
+    if (!playlist.isPublic && (!userId || !ownerId || ownerId.toString() !== userId)) {
       return res.status(403).json({
         success: false,
         message: 'You do not have permission to view this playlist',
@@ -150,12 +223,13 @@ router.post(
   '/:id/songs',
   protect,
   asyncHandler(async (req, res) => {
-    const { songId } = req.body;
+    const { songId, title, artist, coverImage, duration, videoId } = req.body;
+    const targetSongId = songId || videoId;
 
-    if (!songId) {
+    if (!targetSongId) {
       return res.status(400).json({
         success: false,
-        message: 'Song ID is required',
+        message: 'Song ID or Video ID is required',
       });
     }
 
@@ -175,22 +249,46 @@ router.post(
       });
     }
 
-    const song = await Song.findById(songId);
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(targetSongId);
+    let song;
+
+    if (isObjectId) {
+      song = await Song.findById(targetSongId);
+    } else {
+      song = await Song.findOne({ videoId: targetSongId });
+    }
+
+    // If song is not in DB yet, create it from metadata
+    if (!song && title) {
+      song = new Song({
+        title,
+        artist: artist || 'Unknown Artist',
+        coverImage: coverImage || '',
+        duration: duration || 180,
+        audioUrl: `https://www.youtube.com/watch?v=${videoId || targetSongId}`,
+        videoId: videoId || targetSongId,
+        source: 'youtube'
+      });
+      await song.save();
+    }
+
     if (!song) {
       return res.status(404).json({
         success: false,
-        message: 'Song not found',
+        message: 'Song not found in database and no metadata provided.',
       });
     }
 
-    if (playlist.songs.includes(songId)) {
+    const resolvedSongId = song._id;
+
+    if (playlist.songs.includes(resolvedSongId)) {
       return res.status(400).json({
         success: false,
         message: 'Song already in playlist',
       });
     }
 
-    playlist.songs.push(songId);
+    playlist.songs.push(resolvedSongId);
     await playlist.save();
 
     res.status(200).json({
@@ -278,6 +376,110 @@ router.post(
       success: true,
       message: 'Smart playlist generated successfully',
       data: playlist,
+    });
+  }),
+);
+
+router.post(
+  '/smart',
+  protect,
+  asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user.userId).populate('likedSongs');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const likedSongs = user.likedSongs || [];
+
+    if (likedSongs.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have no Liked Songs. Please search and like some tracks first before generating an AI Smart Playlist.',
+      });
+    }
+
+    // Take top 10-15 liked songs
+    const sampleSongs = likedSongs.slice(0, 15);
+    
+    let recommendedSongs;
+    try {
+      recommendedSongs = await generateSmartPlaylistFromLikes(sampleSongs);
+    } catch (llmErr) {
+      return res.status(500).json({
+        success: false,
+        message: `Failed to compile recommendations from OpenRouter: ${llmErr.message}`
+      });
+    }
+
+    const limitedRecommendations = (recommendedSongs || []).slice(0, 10);
+
+    const songsToSave = [];
+    
+    for (const rec of limitedRecommendations) {
+      try {
+        const searchQuery = `${rec.title} ${rec.artist} official audio`;
+        const searchResults = await searchYouTube(searchQuery);
+        
+        if (searchResults && searchResults.length > 0) {
+          const track = searchResults[0];
+          
+          let dbSong = await Song.findOne({ videoId: track.videoId });
+          if (!dbSong) {
+            dbSong = new Song({
+              title: track.title,
+              artist: track.artist,
+              coverImage: track.coverImage,
+              duration: track.duration || 180,
+              audioUrl: track.audioUrl,
+              videoId: track.videoId,
+              source: 'youtube'
+            });
+            await dbSong.save();
+          }
+          songsToSave.push(dbSong._id);
+        }
+      } catch (err) {
+        logger.error(`Failed to map smart AI recommended song "${rec.title}" by ${rec.artist}: ${err.message}`);
+      }
+    }
+
+    if (songsToSave.length === 0) {
+      songsToSave.push(...likedSongs.slice(0, 3).map(s => s._id));
+    }
+
+    const playlistName = `AI Mix: ${new Date().toLocaleDateString()}`;
+    const playlist = await Playlist.create({
+      name: playlistName,
+      description: `Tailored soundtrack compiled by Nvidia Nemotron model based on your favorite tracks like ${sampleSongs[0]?.title || ''}.`,
+      owner: req.user.userId,
+      songs: songsToSave,
+      isSmartPlaylist: true,
+      isPublic: false
+    });
+
+    user.playlists.push(playlist._id);
+    await user.save();
+
+    const populatedPlaylist = await Playlist.findById(playlist._id).populate('songs');
+
+    const tracksFormatted = populatedPlaylist.songs.map(song => ({
+      videoId: song.videoId,
+      title: song.title,
+      artist: song.artist,
+      thumbnail: song.coverImage
+    }));
+
+    res.status(201).json({
+      success: true,
+      playlist: {
+        id: populatedPlaylist._id.toString(),
+        name: populatedPlaylist.name,
+        tracks: tracksFormatted
+      }
     });
   }),
 );

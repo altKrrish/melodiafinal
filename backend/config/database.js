@@ -8,6 +8,7 @@ const mongooseOptions = {
   socketTimeoutMS: 45000,
   maxPoolSize: 10,
   minPoolSize: 5,
+  bufferCommands: false,
 };
 
 import { MongoMemoryServer } from 'mongodb-memory-server';
@@ -43,7 +44,7 @@ const connectDB = async () => {
     return mongoose.connection;
   } catch (error) {
     logger.error(`MongoDB connection failed: ${error.message}`);
-    process.exit(1);
+    return null;
   }
 };
 

@@ -95,6 +95,10 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };
 
+userSchema.methods.comparePassword = async function (enteredPassword) {
+  return bcrypt.compare(enteredPassword, this.password);
+};
+
 // Method to hide sensitive info
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
@@ -105,5 +109,25 @@ userSchema.methods.toJSON = function () {
 // Indexes for performance
 userSchema.index({ email: 1 });
 userSchema.index({ username: 1 });
+
+// Virtual: compute XP from activity
+userSchema.virtual('xp').get(function () {
+  const likedXP = (this.likedSongs?.length || 0) * 10;
+  const playlistXP = (this.playlists?.length || 0) * 25;
+  const followerXP = (this.followers?.length || 0) * 15;
+  const followingXP = (this.following?.length || 0) * 5;
+  return likedXP + playlistXP + followerXP + followingXP;
+});
+
+// Virtual: compute level from XP (1-99 range)
+userSchema.virtual('level').get(function () {
+  const totalXP = this.xp || 0;
+  const rawLevel = Math.floor(Math.sqrt(totalXP / 10));
+  return Math.max(1, Math.min(rawLevel, 99));
+});
+
+// Ensure virtuals are included in JSON and Object outputs
+userSchema.set('toJSON', { virtuals: true });
+userSchema.set('toObject', { virtuals: true });
 
 export default mongoose.model('User', userSchema);

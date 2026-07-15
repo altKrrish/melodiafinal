@@ -2,7 +2,9 @@ import dotenv from 'dotenv';
 import path from 'path';
 
 // Load environment variables from .env file
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+import { fileURLToPath } from 'url';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const config = {
   NODE_ENV: process.env.NODE_ENV || 'development',
@@ -42,7 +44,7 @@ const config = {
   OPENAI: {
     apiKey: process.env.OPENAI_API_KEY,
     openRouterKey: process.env.OPENROUTER_API_KEY,
-    model: process.env.OPENAI_MODEL || 'gpt-3.5-turbo'
+    model: process.env.OPENAI_MODEL && process.env.OPENAI_MODEL !== 'gpt-3.5-turbo' ? process.env.OPENAI_MODEL : 'openrouter/free'
   },
   
   SENDGRID: {

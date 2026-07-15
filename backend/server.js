@@ -10,6 +10,7 @@ import { initializeRedis } from './config/redis.js';
 import { initializeFirebase } from './config/firebase.js';
 import logger from './config/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { initializeDiscoveryAgent } from './utils/discoveryAgent.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -43,10 +44,10 @@ app.use(morgan('combined', { stream: { write: (message) => logger.info(message) 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Rate limiting
+// Rate limiting (relaxed to prevent quota lockouts during rapid client testing)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 10000,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -68,11 +69,37 @@ const initializeServices = async () => {
       initializeFirebase();
       logger.info('Firebase initialized');
     }
+
+    // Start background autonomous DJ discovery agent
+    initializeDiscoveryAgent();
   } catch (error) {
     logger.error(`Service initialization failed: ${error.message}`);
     process.exit(1);
   }
 };
+
+let servicesInitialized = false;
+let initializingPromise = null;
+
+const ensureServicesInitialized = async () => {
+  if (servicesInitialized) return;
+  if (!initializingPromise) {
+    initializingPromise = initializeServices().then(() => {
+      servicesInitialized = true;
+    }).catch(err => {
+      logger.error('Failed to initialize services globally');
+    });
+  }
+  await initializingPromise;
+};
+
+// Middleware for serverless to ensure DB is connected before processing requests
+app.use(async (req, res, next) => {
+  if (!servicesInitialized) {
+    await ensureServicesInitialized();
+  }
+  next();
+});
 
 // ============================================================================
 // ROUTES
@@ -111,6 +138,7 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await initializeServices();
+    servicesInitialized = true;
 
     const server = app.listen(config.PORT, () => {
       logger.info(`🎵 Melodia server running on port ${config.PORT}`);

@@ -1,10 +1,11 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import config from '../config/index.js';
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
+const JWT_SECRET = config.JWT_SECRET;
 
 // Sign up
 router.post('/signup', async (req, res) => {
@@ -22,8 +23,8 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'User already exists with that email or username.' });
     }
 
-    // Create new user
-    const user = new User({ username, email, password });
+    // Create new user (save profilePicture if provided)
+    const user = new User({ username, email, password, profilePicture: req.body.profilePicture || null });
     await user.save();
 
     // Generate token
@@ -31,7 +32,7 @@ router.post('/signup', async (req, res) => {
 
     res.status(201).json({
       token,
-      user: { id: user._id, username: user.username, email: user.email }
+      user: { id: user._id, username: user.username, email: user.email, profilePicture: user.profilePicture, level: user.level || 1, xp: user.xp || 0 }
     });
   } catch (err) {
     console.error('Signup error:', err);
@@ -50,7 +51,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Find user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select('+password');
     if (!user) {
       return res.status(400).json({ error: 'Invalid credentials.' });
     }
@@ -66,7 +67,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      user: { id: user._id, username: user.username, email: user.email }
+      user: { id: user._id, username: user.username, email: user.email, profilePicture: user.profilePicture, level: user.level || 1, xp: user.xp || 0 }
     });
   } catch (err) {
     console.error('Login error:', err);

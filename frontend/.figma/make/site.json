@@ -1,5 +1,9 @@
 {
+  "title": "Melodia",
   "description": "A premium, AI-powered music streaming platform offering immersive discovery, social sharing, and advanced playlist curation for serious listeners.",
+  "icons": {
+    "icon": "/favicon.ico"
+  },
   "robots": {
     "index": false
   },

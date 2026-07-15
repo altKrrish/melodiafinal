@@ -53,16 +53,23 @@ const songSchema = new mongoose.Schema(
     },
     source: {
       type: String,
-      enum: ['local', 'spotify'],
-      default: 'local',
+      enum: ['local', 'spotify', 'youtube'],
+      default: 'youtube',
     },
     spotifyId: String,
+    videoId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
     isExplicit: {
       type: Boolean,
       default: false,
     },
     lyrics: String,
     tags: [String],
+    predictedMoods: [String],
+    vibeCluster: String,
   },
   { timestamps: true },
 );
